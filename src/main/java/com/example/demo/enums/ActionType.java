@@ -1,0 +1,20 @@
+package com.example.demo.enums;
+
+public enum ActionType {
+    CREATE,
+    READ,
+    UPDATE,
+    DELETE,
+    LOGIN,
+    LOGOUT,
+    PASSWORD_CHANGE,
+    ROLE_ASSIGNMENT,
+    FILE_UPLOAD,
+    FILE_DOWNLOAD,
+    PAYMENT_PROCESSED,
+    INVOICE_GENERATED,
+    CONVENTION_CREATED,
+    NOTIFICATION_SENT,
+    USER_CREATED,
+    USER_DELETED
+}

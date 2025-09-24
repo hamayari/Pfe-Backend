@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: convention_tracker_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGODB_INITDB_ROOT_USERNAME=admin
+      - MONGODB_INITDB_ROOT_PASSWORD=password
+      - MONGODB_INITDB_DATABASE=convention_tracker
+
+volumes:
+  mongodb_data:

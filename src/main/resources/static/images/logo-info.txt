@@ -1,0 +1,12 @@
+Pour ajouter le vrai logo GestionPro :
+
+1. Placez le fichier image du logo (PNG, JPG) dans ce dossier
+2. Renommez-le en "gestionpro-logo.png"
+3. Le code chargera automatiquement l'image dans le PDF
+
+Format supporté : PNG, JPG
+Taille recommandée : 200x80 pixels
+
+
+
+

@@ -1,0 +1,59 @@
+package com.example.demo.controller;
+
+import com.example.demo.model.Structure;
+import com.example.demo.repository.StructureRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/structures")
+@CrossOrigin(origins = "http://localhost:4200", allowCredentials = "true", maxAge = 3600)
+@PreAuthorize("hasAnyRole('COMMERCIAL','ADMIN','SUPER_ADMIN')")
+public class StructureController {
+    @Autowired
+    private StructureRepository structureRepository;
+
+    @GetMapping
+    public ResponseEntity<List<Structure>> getAllStructures() {
+        return ResponseEntity.ok(structureRepository.findAll());
+    }
+
+    @PostMapping
+    public ResponseEntity<Structure> createStructure(@RequestBody Structure structure) {
+        try {
+            Structure savedStructure = structureRepository.save(structure);
+            return ResponseEntity.ok(savedStructure);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Structure> getStructureById(@PathVariable String id) {
+        return structureRepository.findById(id)
+                .map(structure -> ResponseEntity.ok(structure))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Structure> updateStructure(@PathVariable String id, @RequestBody Structure structure) {
+        if (structureRepository.existsById(id)) {
+            structure.setId(id);
+            Structure updatedStructure = structureRepository.save(structure);
+            return ResponseEntity.ok(updatedStructure);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteStructure(@PathVariable String id) {
+        if (structureRepository.existsById(id)) {
+            structureRepository.deleteById(id);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+} 

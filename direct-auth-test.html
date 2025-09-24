@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth API Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .panel {
+            flex: 1;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Authentication API Tester</h1>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>Register</h2>
+            <form id="registerForm">
+                <label for="registerName">Name:</label>
+                <input type="text" id="registerName" value="Test User" required>
+                
+                <label for="registerEmail">Email:</label>
+                <input type="email" id="registerEmail" value="testuser@example.com" required>
+                
+                <label for="registerPassword">Password:</label>
+                <input type="password" id="registerPassword" value="password123" required>
+                
+                <button type="submit">Register</button>
+            </form>
+            <h3>Response:</h3>
+            <pre id="registerResponse">No response yet</pre>
+        </div>
+        
+        <div class="panel">
+            <h2>Login</h2>
+            <form id="loginForm">
+                <label for="loginEmail">Email:</label>
+                <input type="email" id="loginEmail" value="testuser@example.com" required>
+                
+                <label for="loginPassword">Password:</label>
+                <input type="password" id="loginPassword" value="password123" required>
+                
+                <button type="submit">Login</button>
+            </form>
+            <h3>Response:</h3>
+            <pre id="loginResponse">No response yet</pre>
+            
+            <div id="tokenContainer" style="display: none;">
+                <h3>JWT Token:</h3>
+                <pre id="jwtToken"></pre>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Base URL for the API
+        const baseUrl = 'http://localhost:8081/api/auth';
+        
+        // Register form submission
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            
+            const responseElement = document.getElementById('registerResponse');
+            responseElement.textContent = 'Sending request...';
+            
+            try {
+                const response = await fetch(`${baseUrl}/signup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name,
+                        email,
+                        password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    responseElement.innerHTML = `<span class="success">Registration successful!</span>\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    responseElement.innerHTML = `<span class="error">Registration failed!</span>\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                responseElement.innerHTML = `<span class="error">Error:</span>\n${error.message}`;
+                console.error('Registration error:', error);
+            }
+        });
+        
+        // Login form submission
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            const responseElement = document.getElementById('loginResponse');
+            responseElement.textContent = 'Sending request...';
+            
+            try {
+                const response = await fetch(`${baseUrl}/signin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email,
+                        password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    responseElement.innerHTML = `<span class="success">Login successful!</span>\n${JSON.stringify(data, null, 2)}`;
+                    
+                    // Display JWT token if available
+                    if (data.token) {
+                        document.getElementById('tokenContainer').style.display = 'block';
+                        document.getElementById('jwtToken').textContent = data.token;
+                    }
+                } else {
+                    responseElement.innerHTML = `<span class="error">Login failed!</span>\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                responseElement.innerHTML = `<span class="error">Error:</span>\n${error.message}`;
+                console.error('Login error:', error);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+# Backend (Spring Boot) build outputs
+/target/
+/build/
+
+# Frontend directory is its own repo; ignore it here
+/app-frontend-new/
+
+# Node and dependency directories
+/node_modules/
+/vendor/
+
+# Angular/Frontend build outputs (in case of misplacement)
+/dist/
+
+# Environment and sensitive files
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.crt
+*.p12
+*.keystore
+*.jks
+
+# IDE/editor configs (optional to ignore)
+.idea/
+.vscode/
+*.iml
+
+# Keep source and assets tracked explicitly (no ignore needed)
