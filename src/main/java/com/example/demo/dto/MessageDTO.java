@@ -3,6 +3,7 @@ package com.example.demo.dto;
 import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.example.demo.model.MessageReaction;
 
 @Data
 public class MessageDTO {
@@ -40,4 +41,5 @@ public class MessageDTO {
     private LocalDateTime deletedAt;
     private String parentMessageId;
     private LocalDateTime editedAt;
+    private List<MessageReaction> reactions;
 }

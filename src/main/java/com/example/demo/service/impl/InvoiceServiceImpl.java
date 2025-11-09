@@ -4,6 +4,7 @@ import com.example.demo.dto.invoice.InvoiceRequest;
 import com.example.demo.model.Invoice;
 import com.example.demo.repository.InvoiceRepository;
 import com.example.demo.service.InvoiceService;
+import com.example.demo.service.InvoiceNumberGenerator;
 import com.example.demo.service.PDFGenerationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,10 +20,58 @@ public class InvoiceServiceImpl implements InvoiceService {
     
     @Autowired
     private PDFGenerationService pdfGenerationService;
+    
+    @Autowired
+    private InvoiceNumberGenerator invoiceNumberGenerator;
+    
+    @Autowired
+    private com.example.demo.service.AccessControlService accessControlService;
+
+    /**
+     * Récupère les factures selon le rôle de l'utilisateur connecté
+     * - COMMERCIAL: Uniquement ses propres factures
+     * - CHEF DE PROJET: Toutes les factures
+     * - DÉCIDEUR: Toutes les factures
+     * - ADMIN: Toutes les factures
+     */
+    public List<Invoice> getInvoicesForCurrentUser() {
+        System.out.println("========================================");
+        System.out.println("💰 [GET INVOICES] Récupération des factures selon le rôle");
+        
+        // Log des informations de l'utilisateur
+        accessControlService.logCurrentUserInfo();
+        
+        List<Invoice> invoices;
+        
+        if (accessControlService.canViewAllData()) {
+            // Chef de projet, Décideur, Admin: Voir TOUTES les factures
+            System.out.println("✅ Utilisateur autorisé à voir TOUTES les factures");
+            invoices = invoiceRepository.findAll();
+        } else if (accessControlService.canViewOnlyOwnData()) {
+            // Commercial: Voir UNIQUEMENT ses propres factures
+            String currentUsername = accessControlService.getCurrentUsername();
+            System.out.println("⚠️  Commercial - Filtrage par createdBy: " + currentUsername);
+            invoices = invoiceRepository.findByCreatedBy(currentUsername);
+        } else {
+            // Utilisateur non authentifié ou sans rôle
+            System.out.println("❌ Utilisateur non autorisé");
+            invoices = new java.util.ArrayList<>();
+        }
+        
+        System.out.println("📊 Nombre de factures retournées: " + invoices.size());
+        System.out.println("========================================");
+        
+        return invoices;
+    }
 
     @Override
     public Invoice createInvoice(InvoiceRequest request, String userId) {
         Invoice invoice = new Invoice();
+        
+        // Générer automatiquement le numéro de facture
+        String invoiceNumber = invoiceNumberGenerator.generateInvoiceNumber();
+        invoice.setInvoiceNumber(invoiceNumber);
+        
         invoice.setConventionId(request.getConventionId());
         invoice.setReference(request.getReference());
         invoice.setAmount(request.getAmount());
@@ -31,6 +80,9 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setStatus("PENDING");
         invoice.setCreatedBy(userId);
         invoice.setCreatedAt(LocalDate.now());
+        
+        System.out.println("✅ Facture créée avec le numéro: " + invoiceNumber);
+        
         return invoiceRepository.save(invoice);
     }
 
@@ -43,12 +95,27 @@ public class InvoiceServiceImpl implements InvoiceService {
     public List<Invoice> getAllInvoices() {
         return invoiceRepository.findAll();
     }
+    
+    @Override
+    public List<Invoice> getInvoicesByUser(String username) {
+        System.out.println("📋 getInvoicesByUser - Filtrage par createdBy: " + username);
+        List<Invoice> invoices = invoiceRepository.findByCreatedBy(username);
+        System.out.println("✅ " + invoices.size() + " factures trouvées pour " + username);
+        return invoices;
+    }
 
     @Override
     public Invoice updateInvoiceStatus(String id, String status) {
         Invoice invoice = getInvoiceById(id);
         if (invoice != null) {
             invoice.setStatus(status);
+            invoice.setUpdatedAt(LocalDate.now());
+            
+            // Si le statut est PAID, mettre à jour la date de paiement
+            if ("PAID".equals(status)) {
+                invoice.setPaymentDate(LocalDate.now());
+            }
+            
             return invoiceRepository.save(invoice);
         }
         return null;
@@ -60,6 +127,15 @@ public class InvoiceServiceImpl implements InvoiceService {
         if (invoice != null) {
             invoice.setStatus(status);
             invoice.setLastModifiedBy(commercialId);
+            invoice.setUpdatedAt(LocalDate.now());
+            
+            // Si le statut est PAID, mettre à jour la date de paiement
+            if ("PAID".equals(status)) {
+                invoice.setPaymentDate(LocalDate.now());
+                invoice.setValidatedBy(commercialName);
+                invoice.setValidatedAt(java.time.LocalDateTime.now());
+            }
+            
             return invoiceRepository.save(invoice);
         }
         return null;

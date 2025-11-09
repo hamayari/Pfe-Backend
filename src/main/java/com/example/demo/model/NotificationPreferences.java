@@ -18,6 +18,9 @@ public class NotificationPreferences {
     
     private String userId;
     
+    // Paramètres généraux
+    private String timezone = "Europe/Paris"; // Fuseau horaire par défaut
+    
     // Email notifications
     private boolean emailEnabled;
     private String emailFrequency; // immediate, hourly, daily, weekly

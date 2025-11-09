@@ -13,8 +13,8 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
-@Configuration
-@EnableWebSocket
+//@Configuration
+//@EnableWebSocket
 public class SimpleWebSocketConfig implements WebSocketConfigurer {
 
     @Override

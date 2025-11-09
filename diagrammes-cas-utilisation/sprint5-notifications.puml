@@ -1,0 +1,116 @@
+@startuml
+title Diagramme de cas d'utilisation raffiné - Sprint 5 : Système de Notifications
+
+left to right direction
+
+actor "Administrateur" as Admin
+actor "Commercial Métier" as Commercial
+actor "Chef de Projet" as ChefProjet
+actor "Système" as System <<system>>
+
+rectangle "Sprint 5 - Système de Notifications Automatiques" {
+  
+  package "Paramétrage des Notifications (Administrateur)" {
+    usecase "Paramétrer les notifications" as UC_ConfigNotifications
+    usecase "Définir le délai avant échéance" as UC_SetDeadline
+    usecase "Configurer les jours d'alerte" as UC_SetAlertDays
+    usecase "Activer/Désactiver les notifications" as UC_ToggleNotif
+    usecase "Définir les destinataires" as UC_SetRecipients
+    usecase "Configurer les templates" as UC_ConfigTemplates
+  }
+  
+  package "Préférences Utilisateur" {
+    usecase "Gérer mes préférences de notification" as UC_ManagePrefs
+    usecase "Choisir le canal de notification" as UC_ChooseChannel
+    usecase "Activer les notifications e-mail" as UC_EnableEmail
+    usecase "Activer les notifications SMS" as UC_EnableSMS
+    usecase "Définir la fréquence" as UC_SetFrequency
+  }
+  
+  package "Génération des Notifications" {
+    usecase "Vérifier les échéances" as UC_CheckDeadlines
+    usecase "Identifier les factures à échéance proche" as UC_IdentifyUpcoming
+    usecase "Identifier les factures en retard" as UC_IdentifyOverdue
+    usecase "Générer les notifications" as UC_GenerateNotif
+  }
+  
+  package "Envoi des Notifications" {
+    usecase "Envoyer les notifications" as UC_SendNotif
+    usecase "Envoyer par e-mail" as UC_SendEmail
+    usecase "Envoyer par SMS" as UC_SendSMS
+    usecase "Personnaliser le message" as UC_CustomizeMessage
+    usecase "Inclure les détails de la facture" as UC_IncludeDetails
+    usecase "Inclure le lien vers la facture" as UC_IncludeLink
+  }
+  
+  package "Réception et Suivi" {
+    usecase "Recevoir une notification" as UC_ReceiveNotif
+    usecase "Consulter l'historique des notifications" as UC_ViewHistory
+    usecase "Marquer comme lu" as UC_MarkRead
+    usecase "Accéder directement à la facture" as UC_AccessInvoice
+  }
+  
+  package "Journalisation" {
+    usecase "Enregistrer les notifications envoyées" as UC_LogNotif
+    usecase "Tracer les échecs d'envoi" as UC_LogFailures
+    usecase "Générer des rapports" as UC_GenerateReports
+  }
+}
+
+' Relations Administrateur
+Admin --> UC_ConfigNotifications
+Admin --> UC_ManagePrefs
+
+' Relations Commercial et Chef de Projet
+Commercial --> UC_ManagePrefs
+Commercial --> UC_ReceiveNotif
+Commercial --> UC_ViewHistory
+Commercial --> UC_AccessInvoice
+
+ChefProjet --> UC_ManagePrefs
+ChefProjet --> UC_ReceiveNotif
+ChefProjet --> UC_ViewHistory
+ChefProjet --> UC_AccessInvoice
+
+' Relations Système
+System --> UC_CheckDeadlines
+System --> UC_GenerateNotif
+System --> UC_SendNotif
+System --> UC_LogNotif
+
+' Relations Paramétrage
+UC_ConfigNotifications ..> UC_SetDeadline : <<include>>
+UC_ConfigNotifications ..> UC_SetAlertDays : <<include>>
+UC_ConfigNotifications ..> UC_ToggleNotif : <<include>>
+UC_ConfigNotifications ..> UC_SetRecipients : <<include>>
+UC_ConfigNotifications ..> UC_ConfigTemplates : <<include>>
+
+' Relations Préférences
+UC_ManagePrefs ..> UC_ChooseChannel : <<include>>
+UC_ChooseChannel ..> UC_EnableEmail : <<extend>>
+UC_ChooseChannel ..> UC_EnableSMS : <<extend>>
+UC_ManagePrefs ..> UC_SetFrequency : <<include>>
+
+' Relations Génération
+UC_CheckDeadlines ..> UC_IdentifyUpcoming : <<include>>
+UC_CheckDeadlines ..> UC_IdentifyOverdue : <<include>>
+UC_CheckDeadlines ..> UC_GenerateNotif : <<include>>
+
+' Relations Envoi
+UC_GenerateNotif ..> UC_SendNotif : <<include>>
+UC_SendNotif ..> UC_SendEmail : <<extend>>
+UC_SendNotif ..> UC_SendSMS : <<extend>>
+UC_SendNotif ..> UC_CustomizeMessage : <<include>>
+UC_CustomizeMessage ..> UC_IncludeDetails : <<include>>
+UC_CustomizeMessage ..> UC_IncludeLink : <<include>>
+
+' Relations Réception
+UC_ReceiveNotif ..> UC_MarkRead : <<extend>>
+UC_ReceiveNotif ..> UC_AccessInvoice : <<extend>>
+
+' Relations Journalisation
+UC_SendNotif ..> UC_LogNotif : <<include>>
+UC_LogNotif ..> UC_LogFailures : <<extend>>
+UC_LogNotif ..> UC_GenerateReports : <<extend>>
+
+@enduml

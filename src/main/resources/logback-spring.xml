@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Appender pour la console -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss} %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Désactiver complètement les logs d'auto-configuration -->
+    <logger name="org.springframework.boot.autoconfigure" level="OFF"/>
+    <logger name="org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLoggingListener" level="OFF"/>
+    <logger name="org.springframework.context.annotation.ConditionEvaluator" level="OFF"/>
+    <logger name="org.springframework.boot.autoconfigure.condition" level="OFF"/>
+    
+    <!-- Réduire les logs Spring Boot -->
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.springframework.data.mongodb" level="WARN"/>
+    <logger name="org.springframework.security" level="WARN"/>
+    <logger name="org.springframework.web" level="WARN"/>
+    <logger name="org.springframework.boot" level="WARN"/>
+    
+    <!-- Logs de votre application (avec les emojis 🤖📊✅) -->
+    <logger name="com.example.demo" level="INFO"/>
+    
+    <!-- Configuration root -->
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

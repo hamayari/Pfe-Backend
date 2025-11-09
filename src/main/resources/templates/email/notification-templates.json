@@ -1,0 +1,58 @@
+{
+  "invoice_reminder": {
+    "fr": {
+      "email": {
+        "subject": "⏰ Rappel : Facture {{REFERENCE_FACTURE}} - Échéance proche",
+        "body": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n<style>\n.header { background: #f8f9fa; padding: 20px; }\n.content { padding: 20px; }\n.button { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }\n.footer { padding: 20px; font-size: 12px; color: #6c757d; }\n</style>\n</head>\n<body>\n<div class=\"header\">\n<img src=\"{{LOGO_URL}}\" alt=\"Logo\" style=\"max-height: 50px;\">\n</div>\n<div class=\"content\">\n<p>Bonjour {{NOM_UTILISATEUR}},</p>\n<p>Nous vous rappelons que votre facture <strong>#{{REFERENCE_FACTURE}}</strong> d'un montant de <strong>{{MONTANT}}€</strong> arrive à échéance le <strong>{{DATE_ECHEANCE}}</strong>.</p>\n<p style=\"margin: 20px 0;\">\n<a href=\"{{LIEN_FACTURE}}\" class=\"button\">Consulter ma facture</a>\n</p>\n<p>Cordialement,<br>L'équipe commerciale</p>\n</div>\n<div class=\"footer\">\nCe message est envoyé automatiquement, merci de ne pas y répondre directement.\n</div>\n</body>\n</html>",
+        "preview": "Rappel de facture #{{REFERENCE_FACTURE}} - Échéance le {{DATE_ECHEANCE}}"
+      },
+      "sms": {
+        "content": "🔔 Rappel: Facture #{{REFERENCE_FACTURE}} ({{MONTANT}}€) échéance le {{DATE_ECHEANCE}}. Détails: {{LIEN_COURT}}"
+      }
+    },
+    "en": {
+      "email": {
+        "subject": "⏰ Reminder: Invoice {{REFERENCE_FACTURE}} - Due date approaching",
+        "body": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n<style>\n.header { background: #f8f9fa; padding: 20px; }\n.content { padding: 20px; }\n.button { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }\n.footer { padding: 20px; font-size: 12px; color: #6c757d; }\n</style>\n</head>\n<body>\n<div class=\"header\">\n<img src=\"{{LOGO_URL}}\" alt=\"Logo\" style=\"max-height: 50px;\">\n</div>\n<div class=\"content\">\n<p>Hello {{NOM_UTILISATEUR}},</p>\n<p>This is a reminder that your invoice <strong>#{{REFERENCE_FACTURE}}</strong> for <strong>{{MONTANT}}€</strong> is due on <strong>{{DATE_ECHEANCE}}</strong>.</p>\n<p style=\"margin: 20px 0;\">\n<a href=\"{{LIEN_FACTURE}}\" class=\"button\">View my invoice</a>\n</p>\n<p>Best regards,<br>The Commercial Team</p>\n</div>\n<div class=\"footer\">\nThis is an automated message, please do not reply directly.\n</div>\n</body>\n</html>",
+        "preview": "Invoice reminder #{{REFERENCE_FACTURE}} - Due on {{DATE_ECHEANCE}}"
+      },
+      "sms": {
+        "content": "🔔 Reminder: Invoice #{{REFERENCE_FACTURE}} ({{MONTANT}}€) due on {{DATE_ECHEANCE}}. Details: {{LIEN_COURT}}"
+      }
+    },
+    "ar": {
+      "email": {
+        "subject": "⏰ تذكير: الفاتورة {{REFERENCE_FACTURE}} - موعد الاستحقاق يقترب",
+        "body": "<!DOCTYPE html>\n<html dir=\"rtl\">\n<head>\n<meta charset=\"UTF-8\">\n<style>\n.header { background: #f8f9fa; padding: 20px; }\n.content { padding: 20px; text-align: right; }\n.button { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }\n.footer { padding: 20px; font-size: 12px; color: #6c757d; }\n</style>\n</head>\n<body>\n<div class=\"header\">\n<img src=\"{{LOGO_URL}}\" alt=\"شعار\" style=\"max-height: 50px;\">\n</div>\n<div class=\"content\">\n<p>مرحباً {{NOM_UTILISATEUR}}،</p>\n<p>نود تذكيركم بأن فاتورتكم رقم <strong>#{{REFERENCE_FACTURE}}</strong> بقيمة <strong>{{MONTANT}}€</strong> تستحق في <strong>{{DATE_ECHEANCE}}</strong>.</p>\n<p style=\"margin: 20px 0;\">\n<a href=\"{{LIEN_FACTURE}}\" class=\"button\">عرض الفاتورة</a>\n</p>\n<p>مع أطيب التحيات،<br>فريق المبيعات</p>\n</div>\n<div class=\"footer\">\nهذه رسالة آلية، يرجى عدم الرد عليها مباشرة.\n</div>\n</body>\n</html>",
+        "preview": "تذكير بالفاتورة #{{REFERENCE_FACTURE}} - تستحق في {{DATE_ECHEANCE}}"
+      },
+      "sms": {
+        "content": "🔔 تذكير: الفاتورة #{{REFERENCE_FACTURE}} ({{MONTANT}}€) تستحق في {{DATE_ECHEANCE}}. التفاصيل: {{LIEN_COURT}}"
+      }
+    }
+  },
+  "payment_overdue": {
+    "fr": {
+      "email": {
+        "subject": "⚠️ Facture #{{REFERENCE_FACTURE}} en retard de paiement",
+        "body": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n<style>\n.header { background: #f8f9fa; padding: 20px; }\n.content { padding: 20px; }\n.alert { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; margin: 10px 0; border-radius: 5px; }\n.button { background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }\n.footer { padding: 20px; font-size: 12px; color: #6c757d; }\n</style>\n</head>\n<body>\n<div class=\"header\">\n<img src=\"{{LOGO_URL}}\" alt=\"Logo\" style=\"max-height: 50px;\">\n</div>\n<div class=\"content\">\n<p>Bonjour {{NOM_UTILISATEUR}},</p>\n<div class=\"alert\">\n<p>Nous constatons que votre facture <strong>#{{REFERENCE_FACTURE}}</strong> d'un montant de <strong>{{MONTANT}}€</strong> est en retard de paiement depuis le <strong>{{DATE_ECHEANCE}}</strong>.</p>\n</div>\n<p>Merci de régulariser cette situation dès que possible pour éviter des frais supplémentaires.</p>\n<p style=\"margin: 20px 0;\">\n<a href=\"{{LIEN_FACTURE}}\" class=\"button\">Payer maintenant</a>\n</p>\n<p>Pour toute question, n'hésitez pas à contacter votre commercial.</p>\n<p>Cordialement,<br>L'équipe commerciale</p>\n</div>\n<div class=\"footer\">\nCe message est envoyé automatiquement, merci de ne pas y répondre directement.\n</div>\n</body>\n</html>",
+        "preview": "Facture #{{REFERENCE_FACTURE}} en retard - Action requise"
+      },
+      "sms": {
+        "content": "⚠️ URGENT: Facture #{{REFERENCE_FACTURE}} ({{MONTANT}}€) en retard depuis le {{DATE_ECHEANCE}}. Régularisation requise: {{LIEN_COURT}}"
+      }
+    }
+  },
+  "payment_confirmation": {
+    "fr": {
+      "email": {
+        "subject": "✅ Paiement reçu - Facture #{{REFERENCE_FACTURE}}",
+        "body": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n<style>\n.header { background: #f8f9fa; padding: 20px; }\n.content { padding: 20px; }\n.success { background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; margin: 10px 0; border-radius: 5px; }\n.button { background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }\n.footer { padding: 20px; font-size: 12px; color: #6c757d; }\n</style>\n</head>\n<body>\n<div class=\"header\">\n<img src=\"{{LOGO_URL}}\" alt=\"Logo\" style=\"max-height: 50px;\">\n</div>\n<div class=\"content\">\n<p>Bonjour {{NOM_UTILISATEUR}},</p>\n<div class=\"success\">\n<p>Nous confirmons la réception du paiement pour votre facture <strong>#{{REFERENCE_FACTURE}}</strong> d'un montant de <strong>{{MONTANT}}€</strong>.</p>\n</div>\n<p>La facture acquittée est disponible dans votre espace client.</p>\n<p style=\"margin: 20px 0;\">\n<a href=\"{{LIEN_FACTURE}}\" class=\"button\">Télécharger la facture acquittée</a>\n</p>\n<p>Merci de votre confiance.</p>\n<p>Cordialement,<br>L'équipe commerciale</p>\n</div>\n<div class=\"footer\">\nCe message est envoyé automatiquement, merci de ne pas y répondre directement.\n</div>\n</body>\n</html>",
+        "preview": "Confirmation de paiement - Facture #{{REFERENCE_FACTURE}}"
+      },
+      "sms": {
+        "content": "✅ Paiement reçu: Facture #{{REFERENCE_FACTURE}} ({{MONTANT}}€). Facture acquittée disponible: {{LIEN_COURT}}"
+      }
+    }
+  }
+}

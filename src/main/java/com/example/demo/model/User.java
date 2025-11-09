@@ -70,11 +70,18 @@ public class User implements UserDetails {
     
     private String phoneNumber;
     
+    private String country;  // ✅ AJOUTÉ
+    
     // Audit fields
     private Instant createdAt = Instant.now();
     
     private boolean emailVerified = false;
     private boolean locked = false;
+    
+    // Authentification à deux facteurs (2FA)
+    private boolean twoFactorEnabled = false;
+    @JsonIgnore
+    private String twoFactorSecret;
     
     // Blocage utilisateur
     private String blockReason;
@@ -283,5 +290,29 @@ public class User implements UserDetails {
     }
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
+    }
+    
+    public String getCountry() {
+        return country;
+    }
+    public void setCountry(String country) {
+        this.country = country;
+    }
+    
+    // Getters and Setters for 2FA fields
+    public boolean isTwoFactorEnabled() {
+        return twoFactorEnabled;
+    }
+    
+    public void setTwoFactorEnabled(boolean twoFactorEnabled) {
+        this.twoFactorEnabled = twoFactorEnabled;
+    }
+    
+    public String getTwoFactorSecret() {
+        return twoFactorSecret;
+    }
+    
+    public void setTwoFactorSecret(String twoFactorSecret) {
+        this.twoFactorSecret = twoFactorSecret;
     }
 }

@@ -4,25 +4,29 @@ import com.example.demo.dto.NotificationSettingsDTO;
 import com.example.demo.dto.NotificationHistoryDTO;
 import com.example.demo.model.Invoice;
 import com.example.demo.model.NotificationLog;
+import com.example.demo.model.User;
 import com.example.demo.repository.NotificationLogRepository;
+import com.example.demo.repository.InvoiceRepository;
+import com.example.demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.*;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.SimpleMailMessage;
-import com.example.demo.service.TwilioNotificationService;
 
 @Service
 public class NotificationService {
     @Autowired
     private NotificationLogRepository notificationLogRepository;
     @Autowired
+    private InvoiceRepository invoiceRepository;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
     private SimpMessagingTemplate messagingTemplate;
     @Autowired
     private JavaMailSender mailSender;
-    @Autowired
-    private TwilioNotificationService twilioNotificationService;
 
     public List<NotificationLog> getNotificationsForUser(String userId) {
         return notificationLogRepository.findByRecipientId(userId);
@@ -132,10 +136,23 @@ public class NotificationService {
         }
     }
 
-    // À adapter : méthode pour retrouver l'email du commercial à partir de l'id facture
+    // Méthode pour retrouver l'email du commercial à partir de l'id facture
     private String findCommercialEmailByInvoiceId(String invoiceId) {
-        // TODO : Intégrer avec InvoiceRepository/UserRepository
-        return null;
+        try {
+            Invoice invoice = invoiceRepository.findById(invoiceId).orElse(null);
+            if (invoice == null || invoice.getCreatedBy() == null) {
+                return null;
+            }
+            
+            User commercial = userRepository.findById(invoice.getCreatedBy()).orElse(null);
+            if (commercial == null) {
+                commercial = userRepository.findByUsername(invoice.getCreatedBy()).orElse(null);
+            }
+            
+            return commercial != null ? commercial.getEmail() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String findCommercialEmailById(String commercialId) {

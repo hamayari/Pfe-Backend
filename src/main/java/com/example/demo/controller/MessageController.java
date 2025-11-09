@@ -1,7 +1,9 @@
 package com.example.demo.controller;
 
 import com.example.demo.dto.MessageDTO;
+import com.example.demo.model.Message;
 import com.example.demo.service.MessageService;
+import com.example.demo.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,9 @@ public class MessageController {
 
     @Autowired
     private MessageService messageService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @PostMapping("/send")
     @Operation(summary = "Envoyer un message")
@@ -53,9 +58,36 @@ public class MessageController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> togglePin(@PathVariable String messageId, Authentication authentication) {
         try {
-            String userId = authentication != null ? authentication.getName() : null;
-            messageService.togglePin(messageId, userId);
-            return ResponseEntity.ok().build();
+            // Récupérer l'ID technique (ObjectId) de l'utilisateur connecté
+            String userId = null;
+            if (authentication != null) {
+                // 1) Essayer d'abord via UserPrincipal (contient l'ID MongoDB)
+                try {
+                    Object p = authentication.getPrincipal();
+                    if (p instanceof com.example.demo.security.UserPrincipal up) {
+                        userId = up.getId();
+                    }
+                } catch (Exception ignored) {}
+
+                String principal = authentication.getName(); // souvent username ou email
+                // Essayer username
+                var optUser = userRepository.findByUsername(principal);
+                if (optUser.isEmpty()) {
+                    // Essayer email si disponible
+                    try {
+                        var byEmail = userRepository.findByEmail(principal);
+                        if (byEmail.isPresent()) optUser = byEmail;
+                    } catch (Exception ignored) {}
+                }
+                if (userId == null && optUser.isPresent()) {
+                    userId = optUser.get().getId();
+                } else if (userId == null) {
+                    // fallback: utiliser ce qui est fourni (peut déjà être un id)
+                    userId = principal;
+                }
+            }
+            Message updatedMessage = messageService.togglePin(messageId, userId);
+            return ResponseEntity.ok(updatedMessage);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
@@ -69,8 +101,8 @@ public class MessageController {
             String emoji = body.getOrDefault("emoji", ":+1:");
             String userName = auth != null ? auth.getName() : "";
             String userId = userName;
-            messageService.addReaction(messageId, emoji, userId, userName);
-            return ResponseEntity.ok().build();
+            Message updatedMessage = messageService.addReaction(messageId, emoji, userId, userName);
+            return ResponseEntity.ok(updatedMessage);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }

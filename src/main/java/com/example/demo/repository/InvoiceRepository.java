@@ -9,8 +9,8 @@ public interface InvoiceRepository extends MongoRepository<Invoice, String> {
     List<Invoice> findByConventionId(String conventionId);
     List<Invoice> findByStatus(String status);
     List<Invoice> findByDueDateBeforeAndStatus(LocalDate date, String status);
+    List<Invoice> findByCreatedBy(String createdBy);  // Filtrage par créateur
     boolean existsByReference(String reference);
-    List<Invoice> findByCreatedBy(String userId);
     List<Invoice> findByCreatedByAndStatusAndDueDateBefore(String userId, String status, LocalDate date);
     List<Invoice> findByCreatedByAndDueDateBetween(String userId, LocalDate start, LocalDate end);
     List<Invoice> findByClientId(String clientId);
@@ -26,4 +26,7 @@ public interface InvoiceRepository extends MongoRepository<Invoice, String> {
     // Méthodes pour le scheduler de notifications
     List<Invoice> findByDueDate(LocalDate dueDate);
     List<Invoice> findByDueDateBeforeAndStatusNot(LocalDate date, String status);
+    
+    // Recherche par numéro de facture
+    Invoice findByInvoiceNumber(String invoiceNumber);
 }

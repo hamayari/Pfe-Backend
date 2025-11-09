@@ -1,0 +1,37 @@
+INSTRUCTIONS POUR COPIER LES FICHIERS AMÉLIORÉS
+================================================
+
+Les fichiers améliorés ont été créés avec le suffixe "-improved".
+Vous devez les copier manuellement pour remplacer les anciens.
+
+COMMANDES À EXÉCUTER:
+--------------------
+
+1. Pour Audit History:
+   cd app-frontend-new\src\app\features\audit-history
+   copy /Y audit-history-improved.component.html audit-history.component.html
+   copy /Y audit-history-improved.component.scss audit-history.component.scss
+
+2. Redémarrer le serveur Angular:
+   Ctrl+C (pour arrêter)
+   ng serve (pour redémarrer)
+
+FICHIERS À COPIER:
+-----------------
+✅ audit-history-improved.component.html → audit-history.component.html
+✅ audit-history-improved.component.scss → audit-history.component.scss
+
+FICHIERS DÉJÀ CORRECTS:
+----------------------
+✅ audit-history.component.ts (déjà mis à jour)
+✅ audit-log.service.ts (nouveau service créé)
+✅ permissions-management.component.ts (avec getActionIcon)
+✅ permissions-management.component.html (nouveau)
+✅ permissions-management.component.scss (nouveau)
+✅ predictive-analytics.component.ts (nouveau)
+✅ predictive-analytics.component.html (nouveau)
+✅ predictive-analytics.component.scss (nouveau)
+
+APRÈS LA COPIE:
+--------------
+Toutes les erreurs TypeScript seront résolues et le projet compilera correctement.

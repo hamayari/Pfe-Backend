@@ -28,9 +28,13 @@ import com.example.demo.dto.NotificationDTO;
 import com.example.demo.model.User;
 import java.util.Map;
 import java.util.HashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class ConventionService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ConventionService.class);
 
     @Autowired
     private ConventionRepository conventionRepository;
@@ -46,7 +50,6 @@ public class ConventionService {
     @Autowired
     private NotificationLogRepository notificationLogRepository;
     @Autowired
-    @SuppressWarnings("unused")
     private UserRepository userRepository;
     
     @Autowired
@@ -57,6 +60,46 @@ public class ConventionService {
     
     @Autowired
     private SmsService smsService;
+    
+    @Autowired
+    private AccessControlService accessControlService;
+    
+    /**
+     * Récupère les conventions selon le rôle de l'utilisateur connecté
+     * - COMMERCIAL: Uniquement ses propres conventions
+     * - CHEF DE PROJET: Toutes les conventions
+     * - DÉCIDEUR: Toutes les conventions
+     * - ADMIN: Toutes les conventions
+     */
+    public List<Convention> getConventionsForCurrentUser() {
+        System.out.println("========================================");
+        System.out.println("📋 [GET CONVENTIONS] Récupération des conventions selon le rôle");
+        
+        // Log des informations de l'utilisateur
+        accessControlService.logCurrentUserInfo();
+        
+        List<Convention> conventions;
+        
+        if (accessControlService.canViewAllData()) {
+            // Chef de projet, Décideur, Admin: Voir TOUTES les conventions
+            System.out.println("✅ Utilisateur autorisé à voir TOUTES les conventions");
+            conventions = conventionRepository.findAll();
+        } else if (accessControlService.canViewOnlyOwnData()) {
+            // Commercial: Voir UNIQUEMENT ses propres conventions
+            String currentUsername = accessControlService.getCurrentUsername();
+            System.out.println("⚠️  Commercial - Filtrage par createdBy: " + currentUsername);
+            conventions = conventionRepository.findByCreatedBy(currentUsername);
+        } else {
+            // Utilisateur non authentifié ou sans rôle
+            System.out.println("❌ Utilisateur non autorisé");
+            conventions = new ArrayList<>();
+        }
+        
+        System.out.println("📊 Nombre de conventions retournées: " + conventions.size());
+        System.out.println("========================================");
+        
+        return conventions;
+    }
     
     public Convention createConvention(ConventionRequest request, String userId) {
         // Check if convention with same reference already exists
@@ -93,28 +136,28 @@ public class ConventionService {
         if (request.getPaymentTerms() != null && request.getStartDate() != null && request.getEndDate() != null) {
             int numberOfPayments = request.getPaymentTerms().getNumberOfPayments();
             int intervalDays = request.getPaymentTerms().getIntervalDays();
-            System.out.println("🔄 Génération des échéances: " + numberOfPayments + " paiements, intervalle: " + intervalDays + " jours");
+            logger.info("Génération des échéances: {} paiements, intervalle: {} jours", numberOfPayments, intervalDays);
             
             List<LocalDate> echeances = new ArrayList<>();
             LocalDate current = request.getStartDate().toLocalDate();
             for (int i = 0; i < numberOfPayments; i++) {
                 echeances.add(current);
-                System.out.println("📅 Échéance " + (i+1) + ": " + current);
+                logger.debug("Échéance {}: {}", (i+1), current);
                 current = current.plusDays(intervalDays);
             }
             // S'assurer que la dernière échéance ne dépasse pas la date de fin
             echeances = echeances.stream().filter(d -> !d.isAfter(request.getEndDate().toLocalDate())).collect(Collectors.toList());
             convention.setEcheances(echeances);
-            System.out.println("✅ " + echeances.size() + " échéances générées pour la convention " + request.getReference());
+            logger.info("{} échéances générées pour la convention {}", echeances.size(), request.getReference());
         } else {
-            System.out.println("⚠️ Impossible de générer les échéances - PaymentTerms: " + (request.getPaymentTerms() != null ? "présent" : "absent") + 
-                             ", StartDate: " + (request.getStartDate() != null ? "présent" : "absent") + 
-                             ", EndDate: " + (request.getEndDate() != null ? "présent" : "absent"));
+            logger.warn("Impossible de générer les échéances - PaymentTerms: {}, StartDate: {}, EndDate: {}",
+                (request.getPaymentTerms() != null ? "présent" : "absent"),
+                (request.getStartDate() != null ? "présent" : "absent"),
+                (request.getEndDate() != null ? "présent" : "absent"));
         }
         Convention savedConvention = conventionRepository.save(convention);
-        System.out.println("💾 Convention sauvegardée en base avec l'ID: " + savedConvention.getId());
-        System.out.println("💾 Référence: " + savedConvention.getReference());
-        System.out.println("💾 Créée par: " + savedConvention.getCreatedBy());
+        logger.info("Convention sauvegardée - ID: {}, Référence: {}, Créée par: {}",
+            savedConvention.getId(), savedConvention.getReference(), savedConvention.getCreatedBy());
 
         // 🔔 NOTIFICATION AUTOMATIQUE - Convention créée
         try {
@@ -129,7 +172,7 @@ public class ConventionService {
             notification.setSource("ConventionService");
             
             realTimeNotificationService.createNotification(notification);
-            System.out.println("🔔 Notification interne envoyée pour la convention " + savedConvention.getReference());
+            logger.info("Notification interne envoyée pour la convention {}", savedConvention.getReference());
             
             // 2. Email et SMS réels
             User commercial = userRepository.findById(userId).orElse(null);
@@ -138,10 +181,11 @@ public class ConventionService {
                 commercial = userRepository.findByUsername(userId).orElse(null);
             }
             
-            System.out.println("🔍 [DEBUG] User trouvé: " + (commercial != null ? commercial.getUsername() : "NULL"));
-            System.out.println("🔍 [DEBUG] User ID: " + userId);
-            System.out.println("🔍 [DEBUG] User email: " + (commercial != null ? commercial.getEmail() : "NULL"));
-            System.out.println("🔍 [DEBUG] User phone: " + (commercial != null ? commercial.getPhoneNumber() : "NULL"));
+            logger.debug("User trouvé: {}, ID: {}, Email: {}, Phone: {}",
+                (commercial != null ? commercial.getUsername() : "NULL"),
+                userId,
+                (commercial != null ? commercial.getEmail() : "NULL"),
+                (commercial != null ? commercial.getPhoneNumber() : "NULL"));
             
             if (commercial != null) {
                 // Email
@@ -156,40 +200,38 @@ public class ConventionService {
                     // Test avec email de test en cas d'erreur Gmail
                     String testEmail = "hamayari71@gmail.com";
                     emailService.sendConventionCreatedEmail(testEmail, emailVariables);
-                    System.out.println("📧 Email envoyé à " + testEmail + " pour la convention " + savedConvention.getReference());
+                    logger.info("Email envoyé à {} pour la convention {}", testEmail, savedConvention.getReference());
                 } catch (Exception e) {
-                    System.err.println("❌ Erreur envoi email convention: " + e.getMessage());
+                    logger.error("Erreur envoi email convention: {}", e.getMessage(), e);
                 }
                 
                 // SMS
                 try {
-                           String phoneNumber = commercial.getPhoneNumber();
-                           if (phoneNumber == null || phoneNumber.isEmpty()) {
-                               System.out.println("⚠️ [DEBUG] L'utilisateur " + commercial.getUsername() + " n'a pas de numéro de téléphone configuré");
-                               System.out.println("📱 [DEBUG] SMS non envoyé - numéro manquant pour l'utilisateur");
-                               // Ne pas envoyer de SMS si pas de numéro
-                           } else {
-                    
-                    Map<String, String> smsVariables = new HashMap<>();
-                    smsVariables.put("conventionReference", savedConvention.getReference());
-                    smsVariables.put("amount", String.valueOf(savedConvention.getAmount()));
-                    
-                               smsService.sendSmsWithTemplate(phoneNumber, "convention_created", smsVariables);
-                               System.out.println("📱 SMS envoyé au " + phoneNumber + " pour la convention " + savedConvention.getReference());
-                           }
-                       } catch (Exception e) {
-                           System.err.println("❌ Erreur envoi SMS convention: " + e.getMessage());
-                       }
-                   }
-               } catch (Exception e) {
-                   System.err.println("❌ Erreur envoi notification convention: " + e.getMessage());
-               }
+                    String phoneNumber = commercial.getPhoneNumber();
+                    if (phoneNumber == null || phoneNumber.isEmpty()) {
+                        logger.warn("L'utilisateur {} n'a pas de numéro de téléphone configuré", commercial.getUsername());
+                    } else {
+                        Map<String, String> smsVariables = new HashMap<>();
+                        smsVariables.put("conventionReference", savedConvention.getReference());
+                        smsVariables.put("amount", String.valueOf(savedConvention.getAmount()));
+                        
+                        smsService.sendSmsWithTemplate(phoneNumber, "convention_created", smsVariables);
+                        logger.info("SMS envoyé au {} pour la convention {}", phoneNumber, savedConvention.getReference());
+                    }
+                } catch (Exception e) {
+                    logger.error("Erreur envoi SMS convention: {}", e.getMessage(), e);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Erreur envoi notification convention: {}", e.getMessage(), e);
+        }
 
         // Debug des PaymentTerms
-        System.out.println("PaymentTerms: " + (request.getPaymentTerms() != null ? "présent" : "absent"));
+        logger.debug("PaymentTerms: {}", (request.getPaymentTerms() != null ? "présent" : "absent"));
         if (request.getPaymentTerms() != null) {
-            System.out.println("Nombre de paiements: " + request.getPaymentTerms().getNumberOfPayments());
-            System.out.println("Intervalle: " + request.getPaymentTerms().getIntervalDays() + " jours");
+            logger.debug("Nombre de paiements: {}, Intervalle: {} jours",
+                request.getPaymentTerms().getNumberOfPayments(),
+                request.getPaymentTerms().getIntervalDays());
         }
 
         // Génération automatique des factures basée sur les échéances
@@ -226,6 +268,11 @@ public class ConventionService {
     public Convention updateConvention(String id, ConventionRequest request) {
         Convention convention = getConventionById(id);
         
+        System.out.println("🔄 Mise à jour de la convention ID: " + id);
+        System.out.println("📋 Nouvelles données - Référence: " + request.getReference());
+        System.out.println("📋 Nouvelles données - Titre: " + request.getTitle());
+        System.out.println("📋 Nouvelles données - Zone géographique: " + request.getGeographicZone());
+        
         convention.setReference(request.getReference());
         convention.setTitle(request.getTitle());
         convention.setDescription(request.getDescription());
@@ -236,7 +283,12 @@ public class ConventionService {
         convention.setAmount(request.getAmount());
         convention.setGovernorate(request.getGeographicZone()); // Utiliser la zone géographique comme gouvernorat
         convention.setPaymentTerms(request.getPaymentTerms());
+        convention.setClient(request.getClient());
+        convention.setType(request.getType());
+        convention.setStatus(request.getStatus());
+        convention.setTag(request.getTag());
         convention.setUpdatedAt(LocalDate.now());
+        
         // Correction : remplir dueDate
         if (request.getDueDate() != null) {
             convention.setDueDate(request.getDueDate());
@@ -244,7 +296,11 @@ public class ConventionService {
             convention.setDueDate(request.getEndDate().toLocalDate());
         }
 
-        return conventionRepository.save(convention);
+        Convention savedConvention = conventionRepository.save(convention);
+        System.out.println("✅ Convention mise à jour avec succès - ID: " + savedConvention.getId());
+        System.out.println("✅ Gouvernorat sauvegardé: " + savedConvention.getGovernorate());
+        
+        return savedConvention;
     }
 
     public Convention getConventionById(String id) {
@@ -358,5 +414,44 @@ public class ConventionService {
             e.printStackTrace();
             return new byte[0];
         }
+    }
+
+    /**
+     * Enrichit les conventions avec le nom complet du commercial qui les a créées
+     */
+    public List<Convention> enrichConventionsWithCommercialNames(List<Convention> conventions) {
+        logger.info("🔍 Enrichissement de {} conventions avec les noms des commerciaux", conventions.size());
+        
+        for (Convention convention : conventions) {
+            if (convention.getCreatedBy() != null && !convention.getCreatedBy().isEmpty()) {
+                try {
+                    // Chercher l'utilisateur par username (createdBy contient le username)
+                    User commercial = userRepository.findByUsername(convention.getCreatedBy()).orElse(null);
+                    
+                    if (commercial != null) {
+                        // Utiliser le nom complet s'il existe, sinon le username
+                        String commercialName = commercial.getName() != null && !commercial.getName().isEmpty() 
+                            ? commercial.getName() 
+                            : commercial.getUsername();
+                        
+                        convention.setCommercial(commercialName);
+                        logger.debug("✅ Convention {}: Commercial = {}", convention.getReference(), commercialName);
+                    } else {
+                        // Si l'utilisateur n'est pas trouvé, garder le username
+                        convention.setCommercial(convention.getCreatedBy());
+                        logger.warn("⚠️  Utilisateur non trouvé pour: {}", convention.getCreatedBy());
+                    }
+                } catch (Exception e) {
+                    logger.error("❌ Erreur lors de la récupération du commercial pour {}: {}", 
+                        convention.getCreatedBy(), e.getMessage());
+                    convention.setCommercial(convention.getCreatedBy());
+                }
+            } else {
+                convention.setCommercial("N/A");
+            }
+        }
+        
+        logger.info("✅ Enrichissement terminé");
+        return conventions;
     }
 }

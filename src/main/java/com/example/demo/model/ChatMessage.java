@@ -18,64 +18,31 @@ public class ChatMessage {
         STOP_TYPING
     }
 
-    // Constructors
     public ChatMessage() {}
 
-    public ChatMessage(String content, String sender, MessageType type) {
-        this.content = content;
-        this.sender = sender;
-        this.type = type;
-        this.timestamp = LocalDateTime.now();
-    }
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
 
-    // Getters and Setters
-    public String getContent() {
-        return content;
-    }
+    public String getSender() { return sender; }
+    public void setSender(String sender) { this.sender = sender; }
 
-    public void setContent(String content) {
-        this.content = content;
-    }
+    public String getRecipient() { return recipient; }
+    public void setRecipient(String recipient) { this.recipient = recipient; }
 
-    public String getSender() {
-        return sender;
-    }
+    public String getConversationId() { return conversationId; }
+    public void setConversationId(String conversationId) { this.conversationId = conversationId; }
 
-    public void setSender(String sender) {
-        this.sender = sender;
-    }
+    public MessageType getType() { return type; }
+    public void setType(MessageType type) { this.type = type; }
 
-    public String getRecipient() {
-        return recipient;
-    }
-
-    public void setRecipient(String recipient) {
-        this.recipient = recipient;
-    }
-
-    public String getConversationId() {
-        return conversationId;
-    }
-
-    public void setConversationId(String conversationId) {
-        this.conversationId = conversationId;
-    }
-
-    public MessageType getType() {
-        return type;
-    }
-
-    public void setType(MessageType type) {
-        this.type = type;
-    }
-
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
-
-    public void setTimestamp(LocalDateTime timestamp) {
-        this.timestamp = timestamp;
-    }
+    public LocalDateTime getTimestamp() { return timestamp; }
+    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
 }
+
+
+
+
+
+
 
 

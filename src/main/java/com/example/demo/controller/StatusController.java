@@ -11,7 +11,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/statuses")
 @CrossOrigin(origins = "http://localhost:4200", allowCredentials = "true", maxAge = 3600)
-@PreAuthorize("hasAnyRole('COMMERCIAL','ADMIN','SUPER_ADMIN')")
+@PreAuthorize("hasAnyRole('COMMERCIAL','ADMIN','SUPER_ADMIN','PROJECT_MANAGER','DECISION_MAKER')")
 public class StatusController {
     @Autowired
     private StatusRepository statusRepository;

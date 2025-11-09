@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rappel d'échéance de convention</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            color: #333;
+            background-color: #f9f9f9;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .email-wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .header {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #4caf50, #8bc34a, #4caf50);
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .header p {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 24px;
+            color: #333;
+        }
+        .alert-banner {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border-left: 5px solid #ff9800;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 24px 0;
+        }
+        .alert-banner h3 {
+            color: #e65100;
+            font-size: 18px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .alert-banner p {
+            color: #e65100;
+            font-size: 15px;
+        }
+        .details-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 24px;
+            margin: 24px 0;
+            border: 1px solid #e9ecef;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-top: 16px;
+        }
+        .detail-item {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .detail-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .detail-label {
+            font-size: 13px;
+            color: #6c757d;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .detail-value {
+            font-size: 17px;
+            color: #212529;
+            font-weight: 600;
+        }
+        .amount-highlight {
+            font-size: 24px;
+            color: #ff9800;
+            font-weight: 700;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-active {
+            background: #4caf50;
+            color: white;
+        }
+        .status-pending {
+            background: #ffc107;
+            color: #333;
+        }
+        .status-expiring {
+            background: #ff9800;
+            color: white;
+        }
+        .action-section {
+            background: #fff3e0;
+            border-radius: 10px;
+            padding: 24px;
+            margin: 24px 0;
+            text-align: center;
+        }
+        .action-section p {
+            margin-bottom: 20px;
+            font-size: 15px;
+            color: #495057;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+            color: white !important;
+            padding: 14px 32px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 12px rgba(255,152,0,0.3);
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255,152,0,0.4);
+        }
+        .timeline {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #e9ecef;
+        }
+        .timeline-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .timeline-item:last-child {
+            border-bottom: none;
+        }
+        .timeline-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ff9800;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+            font-size: 18px;
+        }
+        .timeline-content {
+            flex: 1;
+        }
+        .timeline-title {
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 4px;
+        }
+        .timeline-date {
+            font-size: 13px;
+            color: #6c757d;
+        }
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196f3;
+            padding: 16px;
+            border-radius: 6px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #495057;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+        }
+        .footer-logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ff9800;
+            margin-bottom: 12px;
+        }
+        .footer p {
+            color: #6c757d;
+            font-size: 13px;
+            margin: 8px 0;
+        }
+        .footer-links {
+            margin-top: 16px;
+        }
+        .footer-links a {
+            color: #ff9800;
+            text-decoration: none;
+            margin: 0 10px;
+            font-size: 13px;
+        }
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #dee2e6, transparent);
+            margin: 24px 0;
+        }
+        
+        /* Responsive */
+        @media only screen and (max-width: 600px) {
+            body { padding: 10px; }
+            .header { padding: 30px 20px; }
+            .header h1 { font-size: 24px; }
+            .content { padding: 30px 20px; }
+            .details-grid { grid-template-columns: 1fr; gap: 12px; }
+            .cta-button { padding: 12px 24px; font-size: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <!-- Header -->
+        <div class="header">
+            <h1>⏰ Rappel d'échéance de convention</h1>
+            <p>Suivi de convention nécessaire</p>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <div class="greeting">
+                Bonjour <strong>{{NOM_UTILISATEUR}}</strong>,
+            </div>
+            
+            <div class="alert-banner">
+                <h3>
+                    <span>📋</span>
+                    <span>Convention nécessitant votre attention</span>
+                </h3>
+                <p>Une convention approche de son échéance. Veuillez vérifier son statut et planifier les actions nécessaires.</p>
+            </div>
+            
+            <div class="details-card">
+                <h3 style="margin-bottom: 16px; color: #212529; font-size: 18px;">📄 Détails de la convention</h3>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Référence</div>
+                        <div class="detail-value">{{REFERENCE_CONVENTION}}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Client</div>
+                        <div class="detail-value">{{NOM_CLIENT}}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Date d'échéance</div>
+                        <div class="detail-value">{{DATE_ECHEANCE}}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Jours restants</div>
+                        <div class="detail-value">
+                            <span class="status-badge status-expiring">{{JOURS_RESTANTS}} jour(s)</span>
+                        </div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Montant</div>
+                        <div class="detail-value amount-highlight">{{MONTANT}} €</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Statut</div>
+                        <div class="detail-value">
+                            <span class="status-badge status-active">{{STATUT}}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="timeline">
+                <h3 style="margin-bottom: 16px; color: #212529; font-size: 16px;">📅 Chronologie</h3>
+                <div class="timeline-item">
+                    <div class="timeline-icon">📝</div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">Début de convention</div>
+                        <div class="timeline-date">{{DATE_DEBUT}}</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-icon">⏰</div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">Échéance prévue</div>
+                        <div class="timeline-date">{{DATE_ECHEANCE}}</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-icon">🔄</div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">Renouvellement possible</div>
+                        <div class="timeline-date">À planifier</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="action-section">
+                <p><strong>📌 Actions recommandées :</strong></p>
+                <ul style="text-align: left; margin: 16px auto; max-width: 400px; color: #495057;">
+                    <li style="margin: 8px 0;">Vérifier l'état d'avancement de la convention</li>
+                    <li style="margin: 8px 0;">Contacter le client pour discuter du renouvellement</li>
+                    <li style="margin: 8px 0;">Préparer les documents nécessaires</li>
+                </ul>
+                <a href="{{LIEN_CONVENTION}}" class="cta-button">
+                    📊 Consulter la convention
+                </a>
+            </div>
+            
+            <div class="info-box">
+                <strong>💡 Rappel :</strong> Il est recommandé de contacter le client au moins 30 jours avant l'échéance pour discuter des options de renouvellement ou de clôture de la convention.
+            </div>
+            
+            <p style="margin-top: 24px; font-size: 14px; color: #6c757d;">
+                Pour toute question concernant cette convention, veuillez contacter votre chef de projet ou l'équipe support.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-logo">GestionPro</div>
+            <p>Système de Gestion Commerciale et Conventions</p>
+            <p>Cette notification a été générée automatiquement par l'application de suivi des conventions et facturations.</p>
+            <div class="divider" style="margin: 16px 0;"></div>
+            <p style="font-size: 12px;">&copy; 2025 GestionPro. Tous droits réservés.</p>
+            <div class="footer-links">
+                <a href="{{LIEN_DASHBOARD}}">Dashboard</a>
+                <a href="{{LIEN_PARAMETRES}}">Paramètres</a>
+                <a href="{{LIEN_SUPPORT}}">Support</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

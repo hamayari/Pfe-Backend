@@ -2,8 +2,17 @@ package com.example.demo.service;
 
 import com.example.demo.model.NotificationTemplate;
 import com.example.demo.repository.NotificationTemplateRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.NumberFormat;
+import java.util.Locale;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -17,10 +26,120 @@ public class NotificationTemplateService {
     @Autowired
     private NotificationTemplateRepository templateRepository;
 
+    @Autowired
+    private ResourceLoader resourceLoader;
+
+    private JsonNode emailTemplates;
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    private static final Map<String, String> SUPPORTED_LANGUAGES = new HashMap<>();
+    static {
+        SUPPORTED_LANGUAGES.put("fr", "Français");
+        SUPPORTED_LANGUAGES.put("en", "English");
+        SUPPORTED_LANGUAGES.put("ar", "العربية");
+    }
+
     /**
      * Templates par défaut
      */
     private static final Map<String, NotificationTemplate> DEFAULT_TEMPLATES = new HashMap<>();
+
+    @PostConstruct
+    public void init() throws IOException {
+        try (InputStream is = resourceLoader.getResource("classpath:templates/email/notification-templates.json").getInputStream()) {
+            emailTemplates = mapper.readTree(is);
+        }
+    }
+
+    /**
+     * Récupère un template selon les préférences de l'utilisateur
+     */
+    public String getPersonalizedTemplate(String type, String language, String channel, Map<String, Object> variables) {
+        if (!emailTemplates.has(type)) {
+            return getDefaultTemplate(type, variables);
+        }
+
+        // Langue par défaut si non supportée
+        if (!SUPPORTED_LANGUAGES.containsKey(language)) {
+            language = "fr";
+        }
+
+        JsonNode templateNode = emailTemplates.get(type).get(language).get(channel);
+        if (templateNode == null) {
+            return getDefaultTemplate(type, variables);
+        }
+
+        String template;
+        if (channel.equals("email")) {
+            template = templateNode.get("body").asText();
+        } else {
+            template = templateNode.get("content").asText();
+        }
+
+        return replaceVariables(template, variables, language);
+    }
+
+    /**
+     * Récupère le sujet de l'email selon la langue
+     */
+    public String getEmailSubject(String type, String language, Map<String, Object> variables) {
+        if (!emailTemplates.has(type)) {
+            return DEFAULT_TEMPLATES.get(type).getSubject();
+        }
+
+        if (!SUPPORTED_LANGUAGES.containsKey(language)) {
+            language = "fr";
+        }
+
+        JsonNode templateNode = emailTemplates.get(type).get(language).get("email");
+        if (templateNode == null || !templateNode.has("subject")) {
+            return DEFAULT_TEMPLATES.get(type).getSubject();
+        }
+
+        return replaceVariables(templateNode.get("subject").asText(), variables, language);
+    }
+
+    /**
+     * Remplace les variables dans le template
+     */
+    private String replaceVariables(String template, Map<String, Object> variables, String language) {
+        String result = template;
+        
+        // Formattage selon la locale
+        Locale locale = new Locale(language);
+        NumberFormat numberFormat = NumberFormat.getCurrencyInstance(locale);
+        DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy", locale);
+
+        for (Map.Entry<String, Object> entry : variables.entrySet()) {
+            String key = "{{" + entry.getKey() + "}}";
+            Object value = entry.getValue();
+            
+            // Formattage spécial selon le type de variable
+            String formattedValue;
+            if (value instanceof Number) {
+                formattedValue = numberFormat.format(value);
+            } else if (value instanceof java.time.temporal.Temporal) {
+                formattedValue = dateFormat.format((java.time.temporal.Temporal)value);
+            } else {
+                formattedValue = value.toString();
+            }
+            
+            result = result.replace(key, formattedValue);
+        }
+        
+        return result;
+    }
+
+    /**
+     * Récupère le template par défaut et remplace les variables
+     */
+    private String getDefaultTemplate(String type, Map<String, Object> variables) {
+        NotificationTemplate template = DEFAULT_TEMPLATES.get(type);
+        if (template == null) {
+            throw new IllegalArgumentException("Template inconnu: " + type);
+        }
+        return replaceVariables(template.getContent(), variables, "fr");
+    }
 
     static {
         // Template pour rappel de facture
@@ -373,6 +492,13 @@ public class NotificationTemplateService {
         }
     }
 }
+
+
+
+
+
+
+
 
 
 

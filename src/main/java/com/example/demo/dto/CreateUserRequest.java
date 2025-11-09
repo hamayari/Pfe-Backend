@@ -20,6 +20,10 @@ public class CreateUserRequest {
     private String password;
 
     private String name;
+    
+    private String phoneNumber;  // ✅ AJOUTÉ
+    
+    private String country;      // ✅ AJOUTÉ
 
     private List<String> roles;
 
@@ -74,7 +78,30 @@ public class CreateUserRequest {
     public void setRoles(List<String> roles) {
         this.roles = roles;
     }
+    
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+    
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+    
+    public String getCountry() {
+        return country;
+    }
+    
+    public void setCountry(String country) {
+        this.country = country;
+    }
 }
+
+
+
+
+
+
+
 
 
 

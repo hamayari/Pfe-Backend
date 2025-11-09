@@ -24,8 +24,14 @@ public class EmailService {
     @Autowired
     private JavaMailSender mailSender;
 
-    @Value("${spring.mail.properties.mail.smtp.from:GestionPro <noreply@gestionpro.com>}")
+    @Value("${spring.mail.username}")
     private String fromEmail;
+    
+    @Value("${mail.from.address:noreply@gestionpro.com}")
+    private String fromAddress;
+    
+    @Value("${mail.from.name:GestionPro}")
+    private String fromName;
 
     /**
      * Méthode principale d'envoi d'email avec template
@@ -35,17 +41,26 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             
-            helper.setFrom(fromEmail);
+            // Utiliser l'adresse professionnelle configurée
+            // Pour Brevo: utiliser l'email vérifié dans Brevo
+            try {
+                helper.setFrom(fromEmail, fromName);
+            } catch (java.io.UnsupportedEncodingException e) {
+                // Fallback sans nom si encodage échoue
+                helper.setFrom(fromEmail);
+            }
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(content, true); // true pour HTML
             
             mailSender.send(message);
-            System.out.println("✅ Email envoyé avec succès à: " + to);
+            System.out.println("✅ Email envoyé avec succès à: " + to + " depuis " + fromEmail);
             
         } catch (MessagingException e) {
             System.err.println("❌ Erreur envoi email à " + to + ": " + e.getMessage());
-            throw new RuntimeException("Erreur lors de l'envoi de l'email", e);
+            e.printStackTrace();
+            // Ne pas lancer d'exception pour ne pas bloquer le processus
+            System.err.println("⚠️ L'envoi d'email a échoué mais le processus continue");
         }
     }
 
@@ -71,7 +86,8 @@ public class EmailService {
      */
     public void sendPasswordResetEmail(String email, String resetToken) {
         String subject = "🔐 Réinitialisation de votre mot de passe";
-        String resetLink = "http://localhost:4200/reset-password?token=" + resetToken;
+        // Inclure un paramètre de rôle par défaut dans l'URL
+        String resetLink = "http://localhost:4200/auth/reset-password?token=" + resetToken + "&role=decision-maker";
         String htmlContent = buildPasswordResetTemplate(email, resetLink);
         sendEmail(email, subject, htmlContent);
     }
@@ -83,6 +99,20 @@ public class EmailService {
         String subject = "🔐 Code de vérification à deux facteurs";
         String htmlContent = buildTwoFactorTemplate(code);
         sendEmail(email, subject, htmlContent);
+    }
+
+    /**
+     * Alias pour send2FACode (compatibilité)
+     */
+    public void send2FACode(String email, String code, String username) {
+        sendTwoFactorCode(email, code);
+    }
+
+    /**
+     * Alias pour sendWelcomeEmail (compatibilité)
+     */
+    public void sendWelcomeEmail(String email, String username) {
+        sendNewUserEmail(email, username);
     }
 
     /**

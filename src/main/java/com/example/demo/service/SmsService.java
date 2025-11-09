@@ -8,6 +8,8 @@ import com.example.demo.repository.SmsNotificationRepository;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,8 @@ import java.util.Optional;
 @Service
 public class SmsService {
 
+    private static final Logger logger = LoggerFactory.getLogger(SmsService.class);
+
     @Value("${twilio.account.sid}")
     private String accountSid;
 
@@ -29,13 +33,29 @@ public class SmsService {
     @Value("${twilio.phone.number}")
     private String fromPhoneNumber;
 
+    @Value("${sms.simulation.mode:false}")
+    private boolean simulationMode;
+
     @Autowired
     private SmsNotificationRepository smsNotificationRepository;
 
-    // Initialiser Twilio
+    // Initialiser Twilio automatiquement au démarrage
+    @jakarta.annotation.PostConstruct
     public void initializeTwilio() {
-        if (accountSid != null && authToken != null) {
+        if (simulationMode) {
+            logger.info("MODE SIMULATION ACTIVÉ - Les SMS ne seront pas envoyés réellement");
+            logger.info("Les SMS seront enregistrés dans la base de données uniquement");
+            return;
+        }
+        
+        if (accountSid != null && authToken != null && !accountSid.equals("your-twilio-account-sid")) {
+            logger.info("Initialisation de Twilio...");
+            logger.debug("Account SID: {}", accountSid);
+            logger.debug("From Number: {}", fromPhoneNumber);
             Twilio.init(accountSid, authToken);
+            logger.info("Twilio initialisé avec succès");
+        } else {
+            logger.warn("Twilio non configuré - vérifiez application.properties");
         }
     }
 
@@ -75,6 +95,18 @@ public class SmsService {
                 variables.getOrDefault("amount", "0"),
                 variables.getOrDefault("paymentMethod", "N/A")
             );
+            case "kpi_alert" -> String.format(
+                "🚨 GestionPro\nAlerte KPI %s\n%s (%.1f)\nPriorité: %s\nConsultez le dashboard.\n\nGestionPro",
+                variables.getOrDefault("severity", "HIGH"),
+                variables.getOrDefault("kpiName", "KPI"),
+                Double.parseDouble(variables.getOrDefault("currentValue", "0")),
+                variables.getOrDefault("priority", "HIGH")
+            );
+            case "kpi_delegation" -> String.format(
+                "🔔 GestionPro\nAlerte KPI déléguée\n%s\nPriorité: %s\nConsultez le dashboard.\n\nGestionPro",
+                variables.getOrDefault("kpiName", "KPI"),
+                variables.getOrDefault("priority", "HIGH")
+            );
             case "system_alert" -> String.format(
                 "🚨 GestionPro\nAlerte système\n%s\n%s\nAction requise.\n\nGestionPro",
                 variables.getOrDefault("title", "Alerte"),
@@ -113,37 +145,43 @@ public class SmsService {
         SmsResponseDTO response = new SmsResponseDTO();
         
         try {
-            System.out.println("📱 [SMS DEBUG] Début envoi SMS");
-            System.out.println("📱 [SMS DEBUG] To: " + request.getTo());
-            System.out.println("📱 [SMS DEBUG] From: " + fromPhoneNumber);
-            System.out.println("📱 [SMS DEBUG] Message: " + request.getMessage());
-            System.out.println("📱 [SMS DEBUG] Account SID: " + accountSid);
-            System.out.println("📱 [SMS DEBUG] Auth Token: " + (authToken != null ? "PRÉSENT" : "NULL"));
+            logger.debug("Début envoi SMS");
+            logger.debug("To: {}", request.getTo());
+            logger.debug("From: {}", fromPhoneNumber);
+            logger.debug("Message: {}", request.getMessage());
             
             // Valider le numéro de téléphone
             if (!isValidPhoneNumber(request.getTo())) {
-                System.err.println("❌ [SMS DEBUG] Numéro de téléphone invalide: " + request.getTo());
+                logger.error("Numéro de téléphone invalide: {}", request.getTo());
                 response.setSuccess(false);
                 response.setMessage("Numéro de téléphone invalide");
                 return response;
             }
 
-            System.out.println("📱 [SMS DEBUG] Envoi via Twilio...");
-            // Envoyer le SMS via Twilio
-            Message message = Message.creator(
-                    new PhoneNumber(request.getTo()),
-                    new PhoneNumber(fromPhoneNumber),
-                    request.getMessage()
-            ).create();
-            
-            System.out.println("📱 [SMS DEBUG] SMS envoyé avec succès - SID: " + message.getSid());
+            // MODE SIMULATION : Ne pas envoyer réellement le SMS
+            String twilioSid = null;
+            if (simulationMode) {
+                logger.info("SMS simulé (non envoyé réellement) - To: {}", request.getTo());
+                twilioSid = "SIM-" + System.currentTimeMillis(); // SID simulé
+            } else {
+                logger.debug("Envoi via Twilio...");
+                // Envoyer le SMS via Twilio
+                Message message = Message.creator(
+                        new PhoneNumber(request.getTo()),
+                        new PhoneNumber(fromPhoneNumber),
+                        request.getMessage()
+                ).create();
+                
+                twilioSid = message.getSid();
+                logger.info("SMS envoyé avec succès - SID: {}", twilioSid);
+            }
 
             // Sauvegarder la notification
             SmsNotification notification = new SmsNotification();
             notification.setTo(request.getTo());
             notification.setMessage(request.getMessage());
-            notification.setStatus("SENT");
-            notification.setTwilioSid(message.getSid());
+            notification.setStatus(simulationMode ? "SIMULATED" : "SENT");
+            notification.setTwilioSid(twilioSid);
             notification.setSentAt(LocalDateTime.now());
             notification.setUserId(request.getUserId());
             notification.setType(request.getType());
@@ -151,15 +189,39 @@ public class SmsService {
             smsNotificationRepository.save(notification);
 
             response.setSuccess(true);
-            response.setMessage("SMS envoyé avec succès");
+            response.setMessage(simulationMode ? "SMS simulé avec succès" : "SMS envoyé avec succès");
             response.setSmsId(notification.getId());
-            response.setTwilioSid(message.getSid());
+            response.setTwilioSid(twilioSid);
 
         } catch (Exception e) {
-            System.err.println("❌ [SMS DEBUG] Erreur lors de l'envoi du SMS: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Erreur lors de l'envoi du SMS: {}", e.getMessage());
             
-            // Sauvegarder l'échec
+            // Vérifier si c'est une erreur de numéro non vérifié (compte Twilio trial)
+            if (e.getMessage() != null && e.getMessage().contains("unverified")) {
+                logger.warn("⚠️ Numéro non vérifié dans Twilio (compte trial) - Passage en mode simulation");
+                
+                // Sauvegarder comme simulé au lieu de failed
+                SmsNotification notification = new SmsNotification();
+                notification.setTo(request.getTo());
+                notification.setMessage(request.getMessage());
+                notification.setStatus("SIMULATED");
+                notification.setErrorMessage("Numéro non vérifié - SMS simulé (compte Twilio trial)");
+                notification.setTwilioSid("SIM-UNVERIFIED-" + System.currentTimeMillis());
+                notification.setSentAt(LocalDateTime.now());
+                notification.setUserId(request.getUserId());
+                notification.setType(request.getType());
+                
+                smsNotificationRepository.save(notification);
+
+                response.setSuccess(true); // Considérer comme succès en mode simulation
+                response.setMessage("SMS simulé (numéro non vérifié dans Twilio trial)");
+                response.setSmsId(notification.getId());
+                response.setTwilioSid(notification.getTwilioSid());
+                
+                return response;
+            }
+            
+            // Sauvegarder l'échec pour les autres erreurs
             SmsNotification notification = new SmsNotification();
             notification.setTo(request.getTo());
             notification.setMessage(request.getMessage());
@@ -174,7 +236,7 @@ public class SmsService {
             response.setSuccess(false);
             response.setMessage("Erreur lors de l'envoi du SMS: " + e.getMessage());
         }
-
+        
         return response;
     }
 
@@ -286,12 +348,14 @@ public class SmsService {
             return false;
         }
         
-        // Format international français
-        String frenchPattern = "^\\+33[1-9](\\d{8})$";
-        // Format international général
-        String internationalPattern = "^\\+[1-9]\\d{1,14}$";
+        // Format international général (plus permissif)
+        // Accepte: +33, +216, +1, etc. avec 8 à 15 chiffres
+        String internationalPattern = "^\\+[1-9]\\d{7,14}$";
         
-        return phoneNumber.matches(frenchPattern) || phoneNumber.matches(internationalPattern);
+        boolean isValid = phoneNumber.matches(internationalPattern);
+        System.out.println("📱 [SMS DEBUG] Validation numéro: " + phoneNumber + " -> " + (isValid ? "VALIDE" : "INVALIDE"));
+        
+        return isValid;
     }
 
     // Formater un numéro de téléphone français

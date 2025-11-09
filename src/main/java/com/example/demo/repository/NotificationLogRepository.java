@@ -10,9 +10,12 @@ public interface NotificationLogRepository extends MongoRepository<NotificationL
     List<NotificationLog> findByInvoiceId(String invoiceId);
     long countByRecipientIdAndStatusNot(String recipientId, String status);
     List<NotificationLog> findByIdInAndRecipientId(List<String> ids, String recipientId);
-
-    // Analytics helpers
+    
+    // Méthodes pour analytics
+    long countByStatus(String status);
+    long countByChannel(String channel);
     List<NotificationLog> findBySentAtBetween(LocalDateTime start, LocalDateTime end);
-    long countByTypeAndSentAtBetween(String type, LocalDateTime start, LocalDateTime end);
-    long countByStatusAndSentAtBetween(String status, LocalDateTime start, LocalDateTime end);
-} 
+    List<NotificationLog> findByType(String type);
+    List<NotificationLog> findByStatus(String status);
+    List<NotificationLog> findByStatusOrderBySentAtDesc(String status);
+}

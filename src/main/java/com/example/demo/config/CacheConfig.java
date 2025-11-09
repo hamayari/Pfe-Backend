@@ -21,7 +21,8 @@ public class CacheConfig {
             "performanceMetrics",
             "comparativeAnalysis",
             "alerts",
-            "predictiveAnalytics"
+            "predictiveAnalytics",
+            "userPreferences"  // Cache pour les préférences utilisateur
         ));
         return cacheManager;
     }

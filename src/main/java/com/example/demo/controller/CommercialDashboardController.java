@@ -37,6 +37,59 @@ public class CommercialDashboardController {
     @SuppressWarnings("unused")
     private ReportService reportService;
 
+    @Autowired
+    private com.example.demo.service.AccessControlService accessControlService;
+
+    /**
+     * Récupère les informations du commercial connecté
+     * Retourne: nom, email, rôle, statistiques personnelles
+     */
+    @GetMapping("/me")
+    public ResponseEntity<Map<String, Object>> getCurrentCommercial(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        System.out.println("\n👤 [COMMERCIAL] GET /api/commercial/dashboard/me");
+        
+        com.example.demo.model.User user = accessControlService.getCurrentUser();
+        
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of(
+                "error", "Non authentifié"
+            ));
+        }
+        
+        String userId = userPrincipal.getId();
+        
+        // Récupérer les statistiques du commercial
+        KPIMetricsDTO kpi = commercialDashboardService.getKPIMetrics(userId, null, null, null, null);
+        ConventionStatsDTO conventionStats = commercialDashboardService.getConventionStats(userId);
+        InvoiceStatsDTO invoiceStats = commercialDashboardService.getInvoiceStats(userId);
+        
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("id", user.getId());
+        response.put("username", user.getUsername());
+        response.put("name", user.getName());
+        response.put("email", user.getEmail());
+        response.put("phoneNumber", user.getPhoneNumber());
+        
+        // Statistiques personnelles
+        Map<String, Object> stats = new java.util.HashMap<>();
+        stats.put("totalConventions", kpi.getTotalConventions());
+        stats.put("activeConventions", kpi.getActiveConventions());
+        stats.put("totalInvoices", kpi.getTotalInvoices());
+        stats.put("paidInvoices", kpi.getPaidInvoices());
+        stats.put("overdueInvoices", kpi.getOverdueInvoices());
+        stats.put("monthlyRevenue", kpi.getMonthlyRevenue());
+        stats.put("collectionRate", kpi.getCollectionRate());
+        
+        response.put("statistics", stats);
+        response.put("role", "COMMERCIAL");
+        
+        System.out.println("✅ Commercial: " + user.getName());
+        System.out.println("📊 Conventions: " + kpi.getTotalConventions());
+        System.out.println("💰 Factures: " + kpi.getTotalInvoices());
+        
+        return ResponseEntity.ok(response);
+    }
+
     // KPI et métriques
     @GetMapping("/kpi")
     public ResponseEntity<KPIMetricsDTO> getKPIMetrics(

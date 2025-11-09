@@ -44,16 +44,31 @@ public class InvoiceController {
 
 
 
-    @Value("${stripe.secret-key}")
+    @Value("${stripe.secret-key:}")
     private String stripeSecretKey;
-    @Value("${stripe.webhook.secret}")
+    @Value("${stripe.webhook.secret:}")
     private String stripeWebhookSecret;
 
     @PostMapping
     public ResponseEntity<Invoice> createInvoice(@RequestBody InvoiceRequest request,
                                                 Authentication authentication) {
+        System.out.println("========================================");
+        System.out.println("💰 [CREATE INVOICE] Création d'une facture");
+        
+        if (authentication == null) {
+            System.out.println("❌ Aucun utilisateur authentifié");
+            return ResponseEntity.status(401).build();
+        }
+        
         String userId = authentication.getName();
+        System.out.println("👤 Créée par: " + userId);
+        System.out.println("📋 Convention ID: " + request.getConventionId());
+        
         Invoice invoice = invoiceService.createInvoice(request, userId);
+        System.out.println("✅ Facture créée: " + invoice.getId());
+        System.out.println("✅ createdBy: " + invoice.getCreatedBy());
+        System.out.println("========================================");
+        
         return ResponseEntity.ok(invoice);
     }
 
@@ -79,11 +94,67 @@ public class InvoiceController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Invoice>> getAllInvoices() {
+    public ResponseEntity<List<Invoice>> getAllInvoices(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         try {
-            return ResponseEntity.ok(invoiceService.getAllInvoices());
+            System.out.println("========================================");
+            System.out.println("💰 [GET INVOICES] Endpoint appelé");
+            System.out.println("👤 Utilisateur: " + (userPrincipal != null ? userPrincipal.getUsername() : "null"));
+            
+            if (userPrincipal == null) {
+                System.out.println("❌ Aucun utilisateur authentifié");
+                return ResponseEntity.ok(new java.util.ArrayList<>());
+            }
+            
+            System.out.println("🎭 Rôles: " + userPrincipal.getAuthorities());
+            
+            // Vérifier si l'utilisateur est COMMERCIAL
+            boolean isCommercial = userPrincipal.getAuthorities().stream()
+                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_COMMERCIAL"));
+            
+            // Vérifier si l'utilisateur peut voir TOUTES les données
+            boolean canViewAll = userPrincipal.getAuthorities().stream()
+                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_PROJECT_MANAGER") ||
+                                     auth.getAuthority().equals("ROLE_DECISION_MAKER") ||
+                                     auth.getAuthority().equals("ROLE_ADMIN") ||
+                                     auth.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            
+            List<Invoice> invoices;
+            
+            if (canViewAll) {
+                // Chef de projet, Décideur, Admin: Voir TOUTES les factures
+                System.out.println("✅ Utilisateur autorisé à voir TOUTES les factures");
+                invoices = invoiceService.getAllInvoices();
+            } else if (isCommercial) {
+                // COMMERCIAL: Voir UNIQUEMENT SES PROPRES factures
+                System.out.println("⚠️  COMMERCIAL - Filtrage par createdBy: " + userPrincipal.getUsername());
+                invoices = invoiceService.getInvoicesByUser(userPrincipal.getUsername());
+            } else {
+                // Utilisateur sans rôle spécifique
+                System.out.println("⚠️  Utilisateur sans rôle spécifique");
+                invoices = invoiceService.getAllInvoices();
+            }
+            
+            System.out.println("📊 Nombre de factures retournées: " + invoices.size());
+            
+            // Log détaillé des statuts pour débogage
+            if (!invoices.isEmpty()) {
+                System.out.println("📋 Détail des statuts:");
+                java.util.Map<String, Long> statusCount = invoices.stream()
+                    .collect(java.util.stream.Collectors.groupingBy(
+                        inv -> inv.getStatus() != null ? inv.getStatus() : "NULL",
+                        java.util.stream.Collectors.counting()
+                    ));
+                statusCount.forEach((status, count) -> 
+                    System.out.println("   - " + status + ": " + count)
+                );
+            }
+            
+            System.out.println("========================================");
+            
+            return ResponseEntity.ok(invoices);
         } catch (Exception e) {
-            // Retourner une liste vide en cas d'erreur pour éviter les erreurs 500
+            System.err.println("❌ Erreur: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.ok(new java.util.ArrayList<>());
         }
     }

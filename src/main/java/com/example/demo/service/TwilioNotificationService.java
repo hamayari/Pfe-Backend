@@ -22,11 +22,22 @@ public class TwilioNotificationService {
         Twilio.init(accountSid, authToken);
     }
 
-    public void sendSms(String message) {
-        Message.creator(
-            new PhoneNumber(toNumber),
-            new PhoneNumber("+14155238886"), // Numéro Twilio Sandbox WhatsApp ou ton numéro Twilio SMS
-            message
-        ).create();
+    public void sendSms(String toNumber, String message) {
+        try {
+            System.out.println(" [TWILIO] Envoi SMS...");
+            System.out.println(" [TWILIO] From: " + this.toNumber);
+            System.out.println(" [TWILIO] To: " + toNumber);
+            
+            Message twilioMessage = Message.creator(
+                new PhoneNumber(toNumber),        //Destinataire
+                new PhoneNumber(this.toNumber),   // Expéditeur (votre numéro Twilio)
+                message
+            ).create();
+            
+            System.out.println(" [TWILIO] SMS envoyé - SID: " + twilioMessage.getSid());
+        } catch (Exception e) {
+            System.err.println(" [TWILIO] Erreur: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
-} 
+}

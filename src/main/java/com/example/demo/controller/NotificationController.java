@@ -1,123 +1,151 @@
 package com.example.demo.controller;
 
-import com.example.demo.model.NotificationLog;
-import com.example.demo.service.NotificationService;
-import com.example.demo.dto.NotificationHistoryDTO;
-import com.example.demo.dto.NotificationSettingsDTO;
-import com.example.demo.model.NotificationSettings;
-import com.example.demo.repository.NotificationSettingsRepository;
+import com.example.demo.model.Notification;
+import com.example.demo.service.InAppNotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.security.core.Authentication;
+
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
-
-@RestController
-@RequestMapping("/api/notifications/paiement")
-public class NotificationController {
-    @Autowired
-    private NotificationService notificationService;
-
-    @GetMapping
-    public List<NotificationLog> getNotifications(Authentication authentication) {
-        String userId = authentication.getName();
-        return notificationService.getNotificationsForUser(userId);
-    }
-
-    @PostMapping("/{id}/read")
-    public void markAsRead(@PathVariable String id) {
-        notificationService.markAsRead(id);
-    }
-}
 
 @RestController
 @RequestMapping("/api/notifications")
-class NotificationHistoryController {
+@CrossOrigin(origins = "*")
+public class NotificationController {
+    
     @Autowired
-    private NotificationService notificationService;
-    @Autowired
-    private NotificationSettingsRepository notificationSettingsRepository;
-
-    @GetMapping("/history")
-    public ResponseEntity<List<NotificationHistoryDTO>> getNotificationHistory(Authentication authentication) {
-        try {
-            String userId = authentication.getName();
-            List<NotificationHistoryDTO> history = notificationService.getNotificationHistory(userId);
-            return ResponseEntity.ok(history);
-        } catch (Exception e) {
-            // Retourner une liste vide en cas d'erreur
-            return ResponseEntity.ok(new java.util.ArrayList<>());
+    private InAppNotificationService notificationService;
+    
+    /**
+     * Récupérer toutes les notifications d'un utilisateur (limitées aux 50 plus récentes)
+     */
+    @GetMapping("/user/{userId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Notification>> getUserNotifications(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "50") int limit) {
+        System.out.println("📥 GET /api/notifications/user/" + userId + " (limit: " + limit + ")");
+        List<Notification> notifications = notificationService.getUserNotifications(userId);
+        
+        // Limiter le nombre de notifications retournées
+        List<Notification> limitedNotifications = notifications.stream()
+            .limit(Math.min(limit, 100)) // Maximum 100
+            .collect(java.util.stream.Collectors.toList());
+        
+        System.out.println("✅ Retour de " + limitedNotifications.size() + " notifications (total: " + notifications.size() + ")");
+        
+        if (notifications.size() > 100) {
+            System.out.println("⚠️ ATTENTION: " + notifications.size() + " notifications en base - Nettoyage recommandé!");
         }
+        
+        return ResponseEntity.ok(limitedNotifications);
     }
-
-    @GetMapping("/settings")
-    public ResponseEntity<NotificationSettingsDTO> getNotificationSettings(Authentication authentication) {
-        try {
-            // String userId = authentication.getName(); // reserved for per-user settings in future
-            NotificationSettings settings = notificationSettingsRepository.findById("global")
-                .orElseGet(() -> {
-                    NotificationSettings s = new NotificationSettings();
-                    s.setId("global");
-                    s.setEmailEnabled(true);
-                    s.setSmsEnabled(true);
-                    s.setAutoReminderEnabled(true);
-                    s.setReminderFrequency("daily");
-                    s.setReminderDays(java.util.Arrays.asList(7,3,1));
-                    return notificationSettingsRepository.save(s);
-                });
-
-            NotificationSettingsDTO dto = new NotificationSettingsDTO();
-            dto.setEmailEnabled(settings.isEmailEnabled());
-            dto.setSmsEnabled(settings.isSmsEnabled());
-            dto.setAutoReminderEnabled(settings.isAutoReminderEnabled());
-            dto.setReminderFrequency(settings.getReminderFrequency());
-            dto.setReminderDays(settings.getReminderDays());
-            return ResponseEntity.ok(dto);
-        } catch (Exception e) {
-            return ResponseEntity.ok(new NotificationSettingsDTO());
-        }
+    
+    /**
+     * Récupérer les notifications non lues
+     */
+    @GetMapping("/user/{userId}/unread")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Notification>> getUnreadNotifications(@PathVariable String userId) {
+        List<Notification> notifications = notificationService.getUnreadNotifications(userId);
+        return ResponseEntity.ok(notifications);
     }
-
-    @PutMapping("/settings")
-    public ResponseEntity<NotificationSettingsDTO> updateNotificationSettings(Authentication authentication,
-          @RequestBody NotificationSettingsDTO payload) {
-        // Persist global settings for now (can be extended per-user later)
-        NotificationSettings settings = notificationSettingsRepository.findById("global")
-            .orElseGet(() -> { NotificationSettings s = new NotificationSettings(); s.setId("global"); return s; });
-        settings.setEmailEnabled(payload.isEmailEnabled());
-        settings.setSmsEnabled(payload.isSmsEnabled());
-        settings.setAutoReminderEnabled(payload.isAutoReminderEnabled());
-        settings.setReminderFrequency(payload.getReminderFrequency() != null ? payload.getReminderFrequency() : "daily");
-        settings.setReminderDays(payload.getReminderDays() != null && !payload.getReminderDays().isEmpty() ? payload.getReminderDays() : java.util.Arrays.asList(7,3,1));
-        // Quiet hours
-        if (payload.getTimezone() != null) { /* placeholder to keep DTO compatibility */ }
-        settings.setQuietHoursEnabled(payload.isQuietHoursEnabled());
-        // Keep existing start/end if not provided at this stage
-        if (settings.getQuietHoursStart() == null) settings.setQuietHoursStart("22:00");
-        if (settings.getQuietHoursEnd() == null) settings.setQuietHoursEnd("08:00");
-        notificationSettingsRepository.save(settings);
-
-        return ResponseEntity.ok(payload);
-    }
-
-    @GetMapping("/unread-count")
-    public ResponseEntity<Map<String, Object>> getUnreadCount(Authentication authentication) {
-        String userId = authentication.getName();
+    
+    /**
+     * Compter les notifications non lues
+     */
+    @GetMapping("/user/{userId}/unread/count")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Long> getUnreadCount(@PathVariable String userId) {
         long count = notificationService.getUnreadCount(userId);
-        Map<String, Object> body = new HashMap<>();
-        body.put("unreadCount", count);
-        return ResponseEntity.ok(body);
+        return ResponseEntity.ok(count);
     }
-
-    @PostMapping("/mark-read-bulk")
-    public ResponseEntity<Map<String, Object>> markReadBulk(Authentication authentication, @RequestBody Map<String, List<String>> payload) {
-        String userId = authentication.getName();
-        List<String> ids = payload.getOrDefault("ids", java.util.Collections.emptyList());
-        int updated = notificationService.markAsReadBulk(userId, ids);
-        Map<String, Object> body = new HashMap<>();
-        body.put("updated", updated);
-        return ResponseEntity.ok(body);
+    
+    /**
+     * Marquer une notification comme lue
+     */
+    @PutMapping("/{notificationId}/read")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> markAsRead(
+            @PathVariable String notificationId,
+            @RequestParam String userId) {
+        boolean success = notificationService.markAsRead(notificationId, userId);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", success);
+        
+        return ResponseEntity.ok(response);
     }
-} 
+    
+    /**
+     * Marquer toutes les notifications comme lues
+     */
+    @PutMapping("/user/{userId}/read-all")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> markAllAsRead(@PathVariable String userId) {
+        int count = notificationService.markAllAsRead(userId);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("count", count);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Supprimer une notification
+     */
+    @DeleteMapping("/{notificationId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> deleteNotification(@PathVariable String notificationId) {
+        notificationService.deleteNotification(notificationId);
+        return ResponseEntity.noContent().build();
+    }
+    
+    /**
+     * Récupérer les alertes déléguées pour le Chef de Projet
+     */
+    @GetMapping("/user/{userId}/delegated-alerts")
+    @PreAuthorize("hasRole('PROJECT_MANAGER')")
+    public ResponseEntity<List<Notification>> getDelegatedAlerts(@PathVariable String userId) {
+        System.out.println("📥 GET /api/notifications/user/" + userId + "/delegated-alerts");
+        List<Notification> delegatedAlerts = notificationService.getDelegatedAlerts(userId);
+        System.out.println("✅ Retour de " + delegatedAlerts.size() + " alertes déléguées");
+        return ResponseEntity.ok(delegatedAlerts);
+    }
+    
+    /**
+     * Nettoyer les anciennes notifications (admin uniquement)
+     */
+    @DeleteMapping("/cleanup")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> cleanupOldNotifications(
+            @RequestParam(defaultValue = "30") int daysOld) {
+        System.out.println("🧹 Nettoyage des notifications de plus de " + daysOld + " jours");
+        
+        java.time.LocalDateTime cutoffDate = java.time.LocalDateTime.now().minusDays(daysOld);
+        
+        // Compter avant
+        long totalBefore = notificationService.countAllNotifications();
+        
+        // Supprimer les anciennes notifications lues
+        int deleted = notificationService.deleteOldReadNotifications(cutoffDate);
+        
+        // Compter après
+        long totalAfter = notificationService.countAllNotifications();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("deletedCount", deleted);
+        response.put("totalBefore", totalBefore);
+        response.put("totalAfter", totalAfter);
+        response.put("cutoffDate", cutoffDate.toString());
+        
+        System.out.println("✅ Nettoyage terminé: " + deleted + " notifications supprimées");
+        
+        return ResponseEntity.ok(response);
+    }
+}

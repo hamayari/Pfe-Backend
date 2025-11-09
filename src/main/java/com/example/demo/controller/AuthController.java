@@ -67,8 +67,12 @@ public class AuthController {
     @PostMapping("/reset-password")
     @Operation(summary = "Reset password", description = "Completes the password reset process")
     public ResponseEntity<String> resetPassword(@RequestParam String token, @RequestParam String newPassword) {
-        authService.completePasswordReset(token, newPassword);
-        return ResponseEntity.ok("Password has been reset successfully");
+        try {
+            authService.completePasswordReset(token, newPassword);
+            return ResponseEntity.ok("Password has been reset successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 
     @PostMapping("/users")

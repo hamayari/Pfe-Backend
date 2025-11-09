@@ -23,11 +23,15 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        System.out.println("🚀 [DATA INITIALIZER] Démarrage de l'initialisation...");
+        
         // Créer les rôles s'ils n'existent pas
         createRolesIfNotExist();
         
         // Créer les utilisateurs de test s'ils n'existent pas
         createTestUsersIfNotExist();
+        
+        System.out.println("✅ [DATA INITIALIZER] Initialisation terminée avec succès!");
     }
 
     private void createRolesIfNotExist() {
@@ -77,28 +81,37 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         // Project Manager utilisateur
-        if (!userRepository.existsByUsername("projectmanager")) {
-            User pmUser = new User();
-            pmUser.setUsername("projectmanager");
-            pmUser.setEmail("pm@gestionpro.com");
-            pmUser.setPassword(passwordEncoder.encode("pm123"));
-            pmUser.setName("Project Manager");
-            pmUser.setEnabled(true);
-            
-            Set<Role> pmRoles = new HashSet<>();
-            pmRoles.add(roleRepository.findByName(ERole.ROLE_PROJECT_MANAGER).orElseThrow());
-            pmUser.setRoles(pmRoles);
-            
-            userRepository.save(pmUser);
-            System.out.println("✅ Utilisateur Project Manager créé: projectmanager / pm123");
+        try {
+            // Vérifier s'il existe déjà (peut lever une exception si doublons)
+            if (!userRepository.existsByUsername("projectmanager")) {
+                User pmUser = new User();
+                pmUser.setUsername("projectmanager");
+                pmUser.setEmail("pm@gestionpro.com");
+                pmUser.setPassword(passwordEncoder.encode("pm123456"));
+                pmUser.setName("Project Manager");
+                pmUser.setEnabled(true);
+                
+                Set<Role> pmRoles = new HashSet<>();
+                pmRoles.add(roleRepository.findByName(ERole.ROLE_PROJECT_MANAGER).orElseThrow());
+                pmUser.setRoles(pmRoles);
+                
+                userRepository.save(pmUser);
+                System.out.println("✅ Utilisateur Project Manager créé: projectmanager / pm123456");
+            } else {
+                System.out.println("ℹ️ Utilisateur Project Manager existe déjà");
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ ERREUR: Doublons détectés pour 'projectmanager'. Nettoyez la base de données!");
+            System.err.println("   Exécutez le script: clean-duplicate-users.js");
         }
 
         // Decision Maker utilisateur
-        if (!userRepository.existsByUsername("decisionmaker")) {
+        User existingDM = userRepository.findByUsername("decisionmaker").orElse(null);
+        if (existingDM == null) {
             User dmUser = new User();
             dmUser.setUsername("decisionmaker");
             dmUser.setEmail("dm@gestionpro.com");
-            dmUser.setPassword(passwordEncoder.encode("dm123"));
+            dmUser.setPassword(passwordEncoder.encode("dm123456"));
             dmUser.setName("Decision Maker");
             dmUser.setEnabled(true);
             
@@ -107,14 +120,19 @@ public class DataInitializer implements CommandLineRunner {
             dmUser.setRoles(dmRoles);
             
             userRepository.save(dmUser);
-            System.out.println("✅ Utilisateur Decision Maker créé: decisionmaker / dm123");
+            System.out.println("✅ Utilisateur Decision Maker créé: decisionmaker / dm123456");
+        } else {
+            // Mettre à jour le mot de passe si l'utilisateur existe déjà
+            existingDM.setPassword(passwordEncoder.encode("dm123456"));
+            userRepository.save(existingDM);
+            System.out.println("🔄 Mot de passe Decision Maker mis à jour: decisionmaker / dm123456");
         }
 
         System.out.println("🎉 Initialisation des données terminée !");
         System.out.println("📋 Credentials de test disponibles :");
         System.out.println("   👤 Admin: admin / admin123");
         System.out.println("   👤 Commercial: commercial / commercial123");
-        System.out.println("   👤 Project Manager: projectmanager / pm123");
-        System.out.println("   👤 Decision Maker: decisionmaker / dm123");
+        System.out.println("   👤 Project Manager: projectmanager / pm123456");
+        System.out.println("   👤 Decision Maker: decisionmaker / dm123456");
     }
 }

@@ -26,6 +26,12 @@ public class MessageService {
     @Autowired
     private ConversationService conversationService;
 
+    @Autowired
+    private WebSocketPinService webSocketPinService;
+
+    @Autowired
+    private WebSocketReactionService webSocketReactionService;
+
     // Envoyer un message
     public MessageDTO sendMessage(MessageDTO messageDTO) {
         Message message = new Message();
@@ -74,9 +80,7 @@ public class MessageService {
         message.setType("text");
         message.setRead(false);
 
-        Message savedMessage = messageRepository.save(message);
-
-        // Normaliser l'identifiant de conversation pour les messages directs
+        // Normaliser l'identifiant de conversation pour les messages directs AVANT sauvegarde
         if ("DIRECT".equalsIgnoreCase(messageDTO.getMessageType()) && message.getRecipientIds() != null && !message.getRecipientIds().isEmpty()) {
             String otherId = message.getRecipientIds().get(0);
             String a = message.getSenderId();
@@ -88,11 +92,13 @@ public class MessageService {
             }
         }
 
+        Message savedMessage = messageRepository.save(message);
+
         // Mettre à jour la conversation
         if ("DIRECT".equalsIgnoreCase(messageDTO.getMessageType())) {
-            updateDirectConversation(message);
+            updateDirectConversation(savedMessage);
         } else if ("GROUP".equalsIgnoreCase(messageDTO.getMessageType())) {
-            updateGroupConversation(message);
+            updateGroupConversation(savedMessage);
         }
 
         return convertToDTO(savedMessage);
@@ -137,7 +143,15 @@ public class MessageService {
         if (existingReaction == null) {
             MessageReaction reaction = new MessageReaction(emoji, userId, userName);
             message.getReactions().add(reaction);
-            return messageRepository.save(message);
+            Message saved = messageRepository.save(message);
+            // Diffusion WebSocket: réaction ajoutée
+            try {
+                String conversationId = saved.getConversationId();
+                if (conversationId != null && !conversationId.isBlank()) {
+                    webSocketReactionService.broadcastReactionAdded(conversationId, saved.getId(), reaction);
+                }
+            } catch (Exception ignored) {}
+            return saved;
         }
 
         return message; // Réaction déjà présente
@@ -149,8 +163,18 @@ public class MessageService {
             .orElseThrow(() -> new RuntimeException("Message non trouvé"));
 
         if (message.getReactions() != null) {
-            message.getReactions().removeIf(r -> r.getEmoji().equals(emoji) && r.getUserId().equals(userId));
-            return messageRepository.save(message);
+            boolean removed = message.getReactions().removeIf(r -> r.getEmoji().equals(emoji) && r.getUserId().equals(userId));
+            Message saved = messageRepository.save(message);
+            if (removed) {
+                // Diffusion WebSocket: réaction supprimée
+                try {
+                    String conversationId = saved.getConversationId();
+                    if (conversationId != null && !conversationId.isBlank()) {
+                        webSocketReactionService.broadcastReactionRemoved(conversationId, saved.getId(), userId);
+                    }
+                } catch (Exception ignored) {}
+            }
+            return saved;
         }
 
         return message;
@@ -398,16 +422,29 @@ public class MessageService {
         }
     }
 
-    public void togglePin(String messageId, String userId) {
+    public Message togglePin(String messageId, String userId) {
         Message message = messageRepository.findById(messageId)
             .orElseThrow(() -> new RuntimeException("Message non trouvé"));
-        // Autoriser l'expéditeur à épingler; adapter selon besoins (owner/conversation)
-        if (!message.getSenderId().equals(userId)) return;
+        // Autoriser l'expéditeur OU un destinataire (participant) à épingler
+        boolean isSender = userId != null && userId.equals(message.getSenderId());
+        boolean isRecipient = userId != null && message.getRecipientIds() != null && message.getRecipientIds().contains(userId);
+        if (!isSender && !isRecipient) {
+            // Pas autorisé: retourner l'état actuel sans modification
+            return message;
+        }
         boolean newPinned = !message.isPinned();
         message.setPinned(newPinned);
         message.setPinnedByUserId(newPinned ? userId : null);
         message.setPinnedAt(newPinned ? LocalDateTime.now() : null);
-        messageRepository.save(message);
+        Message saved = messageRepository.save(message);
+        // Diffuser l'événement d'épinglage via WebSocket pour mise à jour temps réel du front
+        try {
+            String conversationId = saved.getConversationId();
+            if (conversationId != null && !conversationId.isBlank()) {
+                webSocketPinService.broadcastPinUpdate(conversationId, saved.getId(), newPinned, userId);
+            }
+        } catch (Exception ignored) {}
+        return saved;
     }
 
     // Récupérer les messages par type
@@ -490,9 +527,16 @@ public class MessageService {
         dto.setRead(message.isRead());
         dto.setSenderAvatar(message.getSenderAvatar());
         dto.setMentions(message.getMentions());
-        dto.setPinned(message.isDeleted() ? false : message.isEdited() && false); // default
-        dto.setPinnedAt(null);
-        dto.setPinnedByUserId(null);
+        dto.setPinned(message.isPinned());
+        dto.setPinnedAt(message.getPinnedAt());
+        dto.setPinnedByUserId(message.getPinnedByUserId());
+        dto.setReactions(message.getReactions());
+        dto.setEdited(message.isEdited());
+        dto.setEditedAt(message.getEditedAt());
+        dto.setDeleted(message.isDeleted());
+        dto.setDeletedAt(message.getDeletedAt());
+        dto.setParentMessageId(message.getParentMessageId());
+        dto.setCreatedAt(message.getSentAt()); // Utiliser sentAt comme createdAt
         return dto;
     }
 

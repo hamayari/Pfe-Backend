@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 public class NotificationLog {
     @Id
     private String id;
-    private String type; // EMAIL, SMS, SYSTEM
+    private String type; // EMAIL, SMS, SYSTEM, IN_APP, WHATSAPP
+    private String channel; // Canal de notification
     private LocalDateTime sentAt;
     private String recipient;
     private String recipientId;

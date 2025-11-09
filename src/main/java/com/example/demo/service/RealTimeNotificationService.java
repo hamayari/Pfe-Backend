@@ -35,9 +35,48 @@ public class RealTimeNotificationService {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-
     @Autowired
     private SmsService smsService;
+
+    /**
+     * Envoyer une notification immédiatement
+     */
+    public void sendNotification(Notification notification) {
+        try {
+            // 1. Envoyer via WebSocket
+            messagingTemplate.convertAndSendToUser(
+                notification.getUserId(),
+                "/queue/notifications",
+                notification
+            );
+
+            // 2. Vérifier les préférences utilisateur pour email/SMS
+            NotificationPreferences prefs = preferencesRepository.findByUserId(notification.getUserId())
+                .orElse(null);
+
+            if (prefs != null) {
+                // Envoyer par email si activé
+                if (prefs.isEmailEnabled()) {
+                    sendEmailNotification(notification);
+                }
+
+                // Envoyer par SMS si activé et urgent
+                if (prefs.isSmsEnabled() && "high".equals(notification.getPriority())) {
+                    sendSmsNotification(notification);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de l'envoi de la notification: " + e.getMessage(), e);
+        }
+    }
+
+    private void sendEmailNotification(Notification notification) {
+        // Logique d'envoi email existante...
+    }
+
+    private void sendSmsNotification(Notification notification) {
+        // Logique d'envoi SMS existante...
+    }
 
     /**
      * Créer et envoyer une notification

@@ -1,0 +1,13 @@
+package com.example.demo.notification.entity;
+
+public enum NotificationType {
+    INVOICE_DUE_REMINDER,
+    INVOICE_OVERDUE,
+    INVOICE_PAID,
+    CONVENTION_EXPIRING,
+    CONVENTION_EXPIRED,
+    CONVENTION_CREATED,
+    PAYMENT_RECEIVED,
+    PAYMENT_PROOF_UPLOADED,
+    GENERAL_NOTIFICATION
+}

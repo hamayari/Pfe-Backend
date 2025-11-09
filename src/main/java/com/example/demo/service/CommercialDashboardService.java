@@ -19,23 +19,21 @@ import java.math.BigDecimal;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.io.ByteArrayOutputStream;
-import com.example.demo.model.User;
-import com.example.demo.repository.UserRepository;
-import com.example.demo.model.Client;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.exception.UnauthorizedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class CommercialDashboardService {
+
+    private static final Logger logger = LoggerFactory.getLogger(CommercialDashboardService.class);
 
     @Autowired
     private ConventionRepository conventionRepository;
 
     @Autowired
     private InvoiceRepository invoiceRepository;
-
-    @Autowired
-    private UserRepository userRepository;
 
     public KPIMetricsDTO getKPIMetrics(String userId, String startDate, String endDate, 
                                      String structureId, String governorate) {
@@ -356,66 +354,275 @@ public class CommercialDashboardService {
                                   String title, String structureId, String governorate, String status) {
         List<Convention> conventions = searchConventions(userId, reference, title,
             structureId, governorate, status, null, null, null, null, null);
+        
         if ("excel".equalsIgnoreCase(format)) {
-            try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                Sheet sheet = workbook.createSheet("Conventions");
-                Row header = sheet.createRow(0);
-                header.createCell(0).setCellValue("Reference");
-                header.createCell(1).setCellValue("Title");
-                header.createCell(2).setCellValue("Structure");
-                header.createCell(3).setCellValue("Governorate");
-                header.createCell(4).setCellValue("Status");
-                header.createCell(5).setCellValue("Amount");
-                int rowIdx = 1;
-                for (Convention c : conventions) {
-                    Row row = sheet.createRow(rowIdx++);
-                    row.createCell(0).setCellValue(c.getReference());
-                    row.createCell(1).setCellValue(c.getTitle());
-                    row.createCell(2).setCellValue(c.getStructureId());
-                    row.createCell(3).setCellValue(c.getGovernorate());
-                    row.createCell(4).setCellValue(c.getStatus());
-                    row.createCell(5).setCellValue(c.getAmount().doubleValue());
-                }
-                workbook.write(out);
-                return out.toByteArray();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            return exportConventionsToExcel(conventions);
+        } else if ("pdf".equalsIgnoreCase(format)) {
+            return exportConventionsToPDF(conventions);
+        } else if ("csv".equalsIgnoreCase(format)) {
+            return exportConventionsToCSV(conventions);
         }
-        // Pour PDF, retourner un tableau vide (à implémenter avec iText ou autre)
+        
         return new byte[0];
+    }
+    
+    private byte[] exportConventionsToExcel(List<Convention> conventions) {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Conventions");
+            
+            // Style pour l'en-tête
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            
+            // En-tête
+            Row header = sheet.createRow(0);
+            String[] columns = {"Référence", "Titre", "Structure", "Gouvernorat", "Statut", "Montant (DT)", "Date Création"};
+            for (int i = 0; i < columns.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = header.createCell(i);
+                cell.setCellValue(columns[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.autoSizeColumn(i);
+            }
+            
+            // Données
+            int rowIdx = 1;
+            for (Convention c : conventions) {
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(c.getReference());
+                row.createCell(1).setCellValue(c.getTitle());
+                row.createCell(2).setCellValue(c.getStructureId());
+                row.createCell(3).setCellValue(c.getGovernorate());
+                row.createCell(4).setCellValue(c.getStatus());
+                row.createCell(5).setCellValue(c.getAmount().doubleValue());
+                row.createCell(6).setCellValue(c.getCreatedAt() != null ? c.getCreatedAt().toString() : "");
+            }
+            
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
+    }
+    
+    private byte[] exportConventionsToPDF(List<Convention> conventions) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            com.itextpdf.kernel.pdf.PdfWriter writer = new com.itextpdf.kernel.pdf.PdfWriter(out);
+            com.itextpdf.kernel.pdf.PdfDocument pdf = new com.itextpdf.kernel.pdf.PdfDocument(writer);
+            com.itextpdf.layout.Document document = new com.itextpdf.layout.Document(pdf, com.itextpdf.kernel.geom.PageSize.A4.rotate());
+            
+            // Titre
+            com.itextpdf.layout.element.Paragraph title = new com.itextpdf.layout.element.Paragraph("Rapport des Conventions")
+                .setFontSize(18)
+                .setBold()
+                .setTextAlignment(com.itextpdf.layout.properties.TextAlignment.CENTER);
+            document.add(title);
+            
+            // Date de génération
+            com.itextpdf.layout.element.Paragraph date = new com.itextpdf.layout.element.Paragraph(
+                "Généré le " + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")))
+                .setFontSize(10)
+                .setTextAlignment(com.itextpdf.layout.properties.TextAlignment.CENTER);
+            document.add(date);
+            document.add(new com.itextpdf.layout.element.Paragraph("\n"));
+            
+            // Tableau
+            float[] columnWidths = {2, 3, 2, 2, 2, 2, 2};
+            com.itextpdf.layout.element.Table table = new com.itextpdf.layout.element.Table(columnWidths);
+            table.setWidth(com.itextpdf.layout.properties.UnitValue.createPercentValue(100));
+            
+            // En-tête du tableau
+            String[] headers = {"Référence", "Titre", "Structure", "Gouvernorat", "Statut", "Montant", "Date"};
+            for (String header : headers) {
+                table.addHeaderCell(new com.itextpdf.layout.element.Cell()
+                    .add(new com.itextpdf.layout.element.Paragraph(header))
+                    .setBackgroundColor(com.itextpdf.kernel.colors.ColorConstants.LIGHT_GRAY)
+                    .setBold());
+            }
+            
+            // Données
+            for (Convention c : conventions) {
+                table.addCell(c.getReference());
+                table.addCell(c.getTitle());
+                table.addCell(c.getStructureId());
+                table.addCell(c.getGovernorate());
+                table.addCell(c.getStatus());
+                table.addCell(String.format("%.2f DT", c.getAmount()));
+                table.addCell(c.getCreatedAt() != null ? c.getCreatedAt().toString() : "");
+            }
+            
+            document.add(table);
+            document.close();
+            
+            return out.toByteArray();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
+    }
+    
+    private byte[] exportConventionsToCSV(List<Convention> conventions) {
+        try {
+            StringBuilder csv = new StringBuilder();
+            csv.append("Référence,Titre,Structure,Gouvernorat,Statut,Montant,Date\n");
+            
+            for (Convention c : conventions) {
+                csv.append(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%.2f,\"%s\"\n",
+                    c.getReference(),
+                    c.getTitle(),
+                    c.getStructureId(),
+                    c.getGovernorate(),
+                    c.getStatus(),
+                    c.getAmount(),
+                    c.getCreatedAt() != null ? c.getCreatedAt().toString() : ""));
+            }
+            
+            return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
     }
 
     public byte[] exportInvoices(String userId, String format, String invoiceNumber,
                                String conventionId, String status) {
         List<Invoice> invoices = searchInvoices(userId, invoiceNumber, conventionId,
             status, null, null, null, null, null, null);
+        
         if ("excel".equalsIgnoreCase(format)) {
-            try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                Sheet sheet = workbook.createSheet("Invoices");
-                Row header = sheet.createRow(0);
-                header.createCell(0).setCellValue("InvoiceNumber");
-                header.createCell(1).setCellValue("ConventionId");
-                header.createCell(2).setCellValue("Status");
-                header.createCell(3).setCellValue("Amount");
-                header.createCell(4).setCellValue("DueDate");
-                int rowIdx = 1;
-                for (Invoice i : invoices) {
-                    Row row = sheet.createRow(rowIdx++);
-                    row.createCell(0).setCellValue(i.getInvoiceNumber());
-                    row.createCell(1).setCellValue(i.getConventionId());
-                    row.createCell(2).setCellValue(i.getStatus());
-                    row.createCell(3).setCellValue(i.getAmount().doubleValue());
-                    row.createCell(4).setCellValue(i.getDueDate().toString());
-                }
-                workbook.write(out);
-                return out.toByteArray();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            return exportInvoicesToExcel(invoices);
+        } else if ("pdf".equalsIgnoreCase(format)) {
+            return exportInvoicesToPDF(invoices);
+        } else if ("csv".equalsIgnoreCase(format)) {
+            return exportInvoicesToCSV(invoices);
         }
-        // Pour PDF, retourner un tableau vide (à implémenter avec iText ou autre)
+        
         return new byte[0];
+    }
+    
+    private byte[] exportInvoicesToExcel(List<Invoice> invoices) {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Factures");
+            
+            // Style pour l'en-tête
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            
+            // En-tête
+            Row header = sheet.createRow(0);
+            String[] columns = {"N° Facture", "Convention", "Statut", "Montant (DT)", "Échéance", "Date Création"};
+            for (int i = 0; i < columns.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = header.createCell(i);
+                cell.setCellValue(columns[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.autoSizeColumn(i);
+            }
+            
+            // Données
+            int rowIdx = 1;
+            for (Invoice inv : invoices) {
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(inv.getInvoiceNumber());
+                row.createCell(1).setCellValue(inv.getConventionId());
+                row.createCell(2).setCellValue(inv.getStatus());
+                row.createCell(3).setCellValue(inv.getAmount().doubleValue());
+                row.createCell(4).setCellValue(inv.getDueDate() != null ? inv.getDueDate().toString() : "");
+                row.createCell(5).setCellValue(inv.getCreatedAt() != null ? inv.getCreatedAt().toString() : "");
+            }
+            
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
+    }
+    
+    private byte[] exportInvoicesToPDF(List<Invoice> invoices) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            com.itextpdf.kernel.pdf.PdfWriter writer = new com.itextpdf.kernel.pdf.PdfWriter(out);
+            com.itextpdf.kernel.pdf.PdfDocument pdf = new com.itextpdf.kernel.pdf.PdfDocument(writer);
+            com.itextpdf.layout.Document document = new com.itextpdf.layout.Document(pdf, com.itextpdf.kernel.geom.PageSize.A4.rotate());
+            
+            // Titre
+            com.itextpdf.layout.element.Paragraph title = new com.itextpdf.layout.element.Paragraph("Rapport des Factures")
+                .setFontSize(18)
+                .setBold()
+                .setTextAlignment(com.itextpdf.layout.properties.TextAlignment.CENTER);
+            document.add(title);
+            
+            // Date de génération
+            com.itextpdf.layout.element.Paragraph date = new com.itextpdf.layout.element.Paragraph(
+                "Généré le " + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")))
+                .setFontSize(10)
+                .setTextAlignment(com.itextpdf.layout.properties.TextAlignment.CENTER);
+            document.add(date);
+            document.add(new com.itextpdf.layout.element.Paragraph("\n"));
+            
+            // Tableau
+            float[] columnWidths = {2, 2, 2, 2, 2, 2};
+            com.itextpdf.layout.element.Table table = new com.itextpdf.layout.element.Table(columnWidths);
+            table.setWidth(com.itextpdf.layout.properties.UnitValue.createPercentValue(100));
+            
+            // En-tête du tableau
+            String[] headers = {"N° Facture", "Convention", "Statut", "Montant", "Échéance", "Date"};
+            for (String header : headers) {
+                table.addHeaderCell(new com.itextpdf.layout.element.Cell()
+                    .add(new com.itextpdf.layout.element.Paragraph(header))
+                    .setBackgroundColor(com.itextpdf.kernel.colors.ColorConstants.LIGHT_GRAY)
+                    .setBold());
+            }
+            
+            // Données
+            for (Invoice inv : invoices) {
+                table.addCell(inv.getInvoiceNumber());
+                table.addCell(inv.getConventionId());
+                table.addCell(inv.getStatus());
+                table.addCell(String.format("%.2f DT", inv.getAmount()));
+                table.addCell(inv.getDueDate() != null ? inv.getDueDate().toString() : "");
+                table.addCell(inv.getCreatedAt() != null ? inv.getCreatedAt().toString() : "");
+            }
+            
+            document.add(table);
+            document.close();
+            
+            return out.toByteArray();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
+    }
+    
+    private byte[] exportInvoicesToCSV(List<Invoice> invoices) {
+        try {
+            StringBuilder csv = new StringBuilder();
+            csv.append("N° Facture,Convention,Statut,Montant,Échéance,Date\n");
+            
+            for (Invoice inv : invoices) {
+                csv.append(String.format("\"%s\",\"%s\",\"%s\",%.2f,\"%s\",\"%s\"\n",
+                    inv.getInvoiceNumber(),
+                    inv.getConventionId(),
+                    inv.getStatus(),
+                    inv.getAmount(),
+                    inv.getDueDate() != null ? inv.getDueDate().toString() : "",
+                    inv.getCreatedAt() != null ? inv.getCreatedAt().toString() : ""));
+            }
+            
+            return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
     }
 
     public Convention addTagToConvention(String userId, String conventionId, String tag) {
@@ -501,10 +708,10 @@ public class CommercialDashboardService {
 
 
     @Autowired
-    private ClientService clientService;
+    private RealTimeNotificationService realTimeNotificationService;
     
     @Autowired
-    private RealTimeNotificationService realTimeNotificationService;
+    private EmailService emailService;
 
     public void sendInvoiceByEmail(String userId, String invoiceId, String email) {
         if (email == null || email.isEmpty()) {
@@ -518,31 +725,30 @@ public class CommercialDashboardService {
             if (!invoice.getCreatedBy().equals(userId)) {
                 throw new UnauthorizedException("Vous n'êtes pas autorisé à envoyer cette facture.");
             }
-            // Récupérer les informations du commercial
-            User commercial = userRepository.findById(userId).orElse(null);
-            @SuppressWarnings("unused")
-            String commercialName = commercial != null ? commercial.getName() : "Commercial";
-            // Créer ou récupérer le client avec credentials automatiques
-            Client client = clientService.createOrGetClientWithCredentials(email, "Client", userId);
-            // Ajouter la facture au client
-            clientService.addInvoiceToClient(email, invoiceId);
             // Mise à jour de l'invoice avec les informations d'envoi
             invoice.setClientEmail(email);
-            invoice.setClientId(client.getId());
             invoice.setSentToClientAt(LocalDateTime.now());
             invoice.setSentBy(userId);
             invoiceRepository.save(invoice);
-            // Envoi automatique de l'email au client avec credentials
-            // TODO: Envoyer la facture par email avec les credentials
-            System.out.println("Email de facture pour " + email + " avec facture " + invoice.getInvoiceNumber());
-            System.out.println("✅ Facture " + invoiceId + " envoyée automatiquement à " + email);
-            System.out.println("👤 Client créé/récupéré: " + client.getId());
+            
+            // Envoi de l'email au client
+            try {
+                Map<String, String> variables = new HashMap<>();
+                variables.put("invoiceNumber", invoice.getInvoiceNumber());
+                variables.put("amount", String.valueOf(invoice.getAmount()));
+                variables.put("dueDate", invoice.getDueDate() != null ? invoice.getDueDate().toString() : "N/A");
+                
+                emailService.sendInvoiceReminderEmail(email, variables);
+                logger.info("Facture {} envoyée à {}", invoice.getInvoiceNumber(), email);
+            } catch (Exception e) {
+                logger.error("Erreur lors de l'envoi de l'email de facture: {}", e.getMessage(), e);
+            }
 
-            // 🔔 NOTIFICATION AUTOMATIQUE - Facture envoyée
+            // Notification automatique - Facture envoyée
             try {
                 NotificationDTO notification = new NotificationDTO();
                 notification.setType("info");
-                notification.setTitle("📄 Facture Envoyée");
+                notification.setTitle("Facture Envoyée");
                 notification.setMessage("Facture " + invoice.getInvoiceNumber() + " envoyée à " + email + " (Montant: " + invoice.getAmount() + "€)");
                 notification.setPriority("medium");
                 notification.setCategory("invoice");
@@ -550,12 +756,12 @@ public class CommercialDashboardService {
                 notification.setSource("CommercialDashboardService");
                 
                 realTimeNotificationService.createNotification(notification);
-                System.out.println("🔔 Notification envoyée pour l'envoi de facture " + invoice.getInvoiceNumber());
+                logger.info("Notification envoyée pour l'envoi de facture {}", invoice.getInvoiceNumber());
             } catch (Exception e) {
-                System.err.println("❌ Erreur envoi notification facture: " + e.getMessage());
+                logger.error("Erreur envoi notification facture: {}", e.getMessage(), e);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Erreur lors de l'envoi de la facture par email: {}", e.getMessage(), e);
             throw new RuntimeException("Erreur lors de l'envoi de la facture par email: " + e.getMessage());
         }
     }

@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.model.User;
+import com.example.demo.model.Role;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.repository.RoleRepository;
 import com.example.demo.dto.UserDTO;
@@ -12,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -64,15 +67,33 @@ public class UserService {
         user.setEmail(userDTO.getEmail());
         user.setPhoneNumber(userDTO.getPhoneNumber()); // Ajout du numéro de téléphone
         user.setPassword(passwordEncoder.encode(password));
-        user.setRoles(userDTO.getRoles().stream()
-                .map(role -> roleRepository.findByName(ERole.valueOf(role))
-                        .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + role)))
-                .collect(Collectors.toSet()));
+        
+        // Gestion des rôles avec rôle par défaut
+        Set<Role> roles;
+        if (userDTO.getRoles() == null || userDTO.getRoles().isEmpty()) {
+            // Assigner le rôle COMMERCIAL par défaut si aucun rôle n'est spécifié
+            System.out.println("⚠️ Aucun rôle spécifié, assignation du rôle COMMERCIAL par défaut");
+            Role defaultRole = roleRepository.findByName(ERole.ROLE_COMMERCIAL)
+                    .orElseThrow(() -> new ResourceNotFoundException("Default role COMMERCIAL not found"));
+            roles = new HashSet<>();
+            roles.add(defaultRole);
+        } else {
+            roles = userDTO.getRoles().stream()
+                    .map(role -> roleRepository.findByName(ERole.valueOf(role))
+                            .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + role)))
+                    .collect(Collectors.toSet());
+        }
+        user.setRoles(roles);
+        
         user.setCreatedAt(Instant.now());
         // Initialisation pour utilisateur actif
         user.setIsActive(true);
         user.setEmailVerified(true);
         user.setLocked(false);
+        
+        System.out.println("✅ Utilisateur créé: " + user.getUsername() + " avec rôles: " + 
+                          user.getRoles().stream().map(r -> r.getName().name()).collect(Collectors.joining(", ")));
+        
         return userRepository.save(user);
     }
 

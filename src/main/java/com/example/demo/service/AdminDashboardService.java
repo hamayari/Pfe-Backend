@@ -16,6 +16,7 @@ import com.example.demo.payload.response.UserDTO;
 import com.example.demo.repository.ApplicationRepository;
 import com.example.demo.repository.StructureRepository;
 import com.example.demo.repository.ZoneGeographiqueRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
@@ -54,8 +55,9 @@ public class AdminDashboardService {
     private final ApplicationRepository applicationRepository;
     private final ZoneGeographiqueRepository zoneGeographiqueRepository;
     private final StructureRepository structureRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public AdminDashboardService(UserRepository userRepository, RoleRepository roleRepository, ConventionRepository conventionRepository, AuditLogRepository auditLogRepository, ApplicationRepository applicationRepository, ZoneGeographiqueRepository zoneGeographiqueRepository, StructureRepository structureRepository) {
+    public AdminDashboardService(UserRepository userRepository, RoleRepository roleRepository, ConventionRepository conventionRepository, AuditLogRepository auditLogRepository, ApplicationRepository applicationRepository, ZoneGeographiqueRepository zoneGeographiqueRepository, StructureRepository structureRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.conventionRepository = conventionRepository;
@@ -63,6 +65,7 @@ public class AdminDashboardService {
         this.applicationRepository = applicationRepository;
         this.zoneGeographiqueRepository = zoneGeographiqueRepository;
         this.structureRepository = structureRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public Optional<User> getUserById(String id) {
@@ -75,6 +78,13 @@ public class AdminDashboardService {
 
     @Transactional
     public User createUserFromRequest(CreateUserRequest request) {
+        System.out.println("========================================");
+        System.out.println("👤 [CREATE USER] Création d'un nouvel utilisateur par l'admin");
+        System.out.println("   Username: " + request.getUsername());
+        System.out.println("   Email: " + request.getEmail());
+        System.out.println("   Phone: " + request.getPhoneNumber());
+        System.out.println("   Roles: " + request.getRoles());
+        
         User user = new User();
         
         // Générer un ID MongoDB
@@ -84,7 +94,17 @@ public class AdminDashboardService {
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setName(request.getName());
-        user.setPassword(request.getPassword()); // Note: devrait être hashé en production
+        user.setPhoneNumber(request.getPhoneNumber());  // ✅ AJOUTÉ
+        user.setCountry(request.getCountry());          // ✅ AJOUTÉ
+        
+        // IMPORTANT: Hash du mot de passe avec BCrypt
+        String rawPassword = request.getPassword();
+        String hashedPassword = passwordEncoder.encode(rawPassword);
+        user.setPassword(hashedPassword);
+        
+        System.out.println("🔐 [CREATE USER] Mot de passe hashé avec BCrypt");
+        System.out.println("   Raw password length: " + rawPassword.length());
+        System.out.println("   Hashed password: " + hashedPassword.substring(0, Math.min(30, hashedPassword.length())) + "...");
         
         // Définir la date de création
         user.setCreatedAt(java.time.Instant.now());
@@ -102,27 +122,55 @@ public class AdminDashboardService {
             Set<Role> userRoles = new HashSet<>();
             for (String roleName : request.getRoles()) {
                 try {
-                    ERole roleEnum = ERole.valueOf(roleName);
+                    // Nettoyer le nom du rôle (enlever les espaces et convertir en majuscules)
+                    String cleanRoleName = roleName.trim().toUpperCase();
+                    
+                    // Normaliser le nom du rôle : ajouter ROLE_ si absent
+                    if (!cleanRoleName.startsWith("ROLE_")) {
+                        cleanRoleName = "ROLE_" + cleanRoleName;
+                    }
+                    
+                    // Log pour debug
+                    System.out.println("🔍 Traitement du rôle: '" + roleName + "' → '" + cleanRoleName + "'");
+                    
+                    ERole roleEnum = ERole.valueOf(cleanRoleName);
                     Role role = roleRepository.findByName(roleEnum)
-                        .orElse(new Role(roleEnum));
+                        .orElseThrow(() -> new RuntimeException("Rôle non trouvé dans la base: " + roleEnum));
                     userRoles.add(role);
+                    
+                    System.out.println("✅ Rôle ajouté avec succès: " + roleEnum);
                 } catch (IllegalArgumentException e) {
-                    // Rôle invalide, ignorer
-                    System.err.println("Rôle invalide: " + roleName);
+                    // Rôle invalide, logger l'erreur
+                    System.err.println("❌ Rôle invalide ou non reconnu: '" + roleName + "' - " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
-            user.setRoles(userRoles);
+            
+            // Si aucun rôle valide n'a été ajouté, utiliser le rôle par défaut
+            if (userRoles.isEmpty()) {
+                System.out.println("⚠️ Aucun rôle valide trouvé, utilisation du rôle par défaut ROLE_USER");
+                Role defaultRole = roleRepository.findByName(ERole.ROLE_USER)
+                    .orElseThrow(() -> new RuntimeException("Rôle USER non trouvé dans la base"));
+                user.setRoles(Set.of(defaultRole));
+            } else {
+                user.setRoles(userRoles);
+            }
         } else {
-            // Rôle par défaut
+            // Rôle par défaut si aucun rôle n'est fourni
+            System.out.println("⚠️ Aucun rôle fourni, utilisation du rôle par défaut ROLE_USER");
             Role defaultRole = roleRepository.findByName(ERole.ROLE_USER)
-                .orElse(new Role(ERole.ROLE_USER));
+                .orElseThrow(() -> new RuntimeException("Rôle USER non trouvé dans la base"));
             user.setRoles(Set.of(defaultRole));
         }
         
         // Générer un avatar par défaut
         user.setAvatar(generateDefaultAvatar(user.getName() != null ? user.getName() : user.getUsername()));
         
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        System.out.println("✅ [CREATE USER] Utilisateur créé avec succès - ID: " + savedUser.getId());
+        System.out.println("========================================");
+        
+        return savedUser;
     }
 
     @Transactional
@@ -151,6 +199,59 @@ public class AdminDashboardService {
         return userRepository.save(user);
     }
 
+    @Transactional
+    public User updateUserComplete(String id, String username, String email, String name, String phoneNumber, String country, String role) {
+        System.out.println("🔄 [UPDATE USER COMPLETE] Mise à jour de l'utilisateur ID: " + id);
+        
+        User existingUser = userRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'ID: " + id));
+        
+        // Mettre à jour les champs de base
+        if (username != null && !username.isEmpty()) {
+            existingUser.setUsername(username);
+        }
+        if (email != null && !email.isEmpty()) {
+            existingUser.setEmail(email);
+        }
+        if (name != null && !name.isEmpty()) {
+            existingUser.setName(name);
+        }
+        if (phoneNumber != null) {
+            existingUser.setPhoneNumber(phoneNumber);
+            System.out.println("   📱 Phone mis à jour: " + phoneNumber);
+        }
+        if (country != null) {
+            existingUser.setCountry(country);
+            System.out.println("   🌍 Country mis à jour: " + country);
+        }
+        
+        // Mettre à jour le rôle si fourni
+        if (role != null && !role.isEmpty()) {
+            // Normaliser le rôle
+            String cleanRole = role.trim().toUpperCase();
+            if (!cleanRole.startsWith("ROLE_")) {
+                cleanRole = "ROLE_" + cleanRole;
+            }
+            
+            System.out.println("   🎭 Rôle à mettre à jour: " + cleanRole);
+            
+            try {
+                ERole roleEnum = ERole.valueOf(cleanRole);
+                Role userRole = roleRepository.findByName(roleEnum)
+                    .orElseThrow(() -> new RuntimeException("Rôle non trouvé: " + roleEnum));
+                existingUser.setRoles(Set.of(userRole));
+                System.out.println("   ✅ Rôle mis à jour avec succès");
+            } catch (IllegalArgumentException e) {
+                System.err.println("   ❌ Rôle invalide: " + role);
+            }
+        }
+        
+        User savedUser = userRepository.save(existingUser);
+        System.out.println("✅ [UPDATE USER COMPLETE] Utilisateur sauvegardé");
+        
+        return savedUser;
+    }
+    
     @Transactional
     public User updateUser(String id, User user) {
         User existingUser = userRepository.findById(id)

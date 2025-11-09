@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.dto.*;
+import com.example.demo.dto.dashboard.ComplianceRateDTO;
 import com.example.demo.model.*;
 import com.example.demo.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -24,11 +26,11 @@ public class ProjectManagerDashboardService {
     private UserRepository userRepository;
 
     @Autowired
-    private MessageRepository messageRepository;
-
-    @Autowired
     @SuppressWarnings("unused")
     private NotificationLogRepository notificationLogRepository;
+
+    @Autowired
+    private InternalCommentRepository internalCommentRepository;
 
     // Méthode principale pour obtenir l'aperçu du dashboard
     public ProjectManagerDashboardDTO getDashboardOverview(String projectManagerId, LocalDate startDate, LocalDate endDate) {
@@ -110,10 +112,6 @@ public class ProjectManagerDashboardService {
         // Obtenir les membres de l'équipe
         List<TeamMember> teamMembers = getTeamMembers();
         collaboration.setTeamMembers(teamMembers);
-        
-        // Obtenir les commentaires internes récents
-        List<InternalComment> recentComments = getRecentInternalComments();
-        collaboration.setRecentComments(recentComments);
         
         // Obtenir les éléments d'escalade actifs
         List<EscalationItem> activeEscalations = getActiveEscalationItemsForTeam();
@@ -232,27 +230,6 @@ public class ProjectManagerDashboardService {
         return member;
     }
 
-    private List<InternalComment> getRecentInternalComments() {
-        List<Message> messages = messageRepository.findAll();
-        
-        return messages.stream()
-                .limit(10)
-                .map(this::convertMessageToInternalComment)
-                .collect(Collectors.toList());
-    }
-
-    private InternalComment convertMessageToInternalComment(Message message) {
-        InternalComment comment = new InternalComment();
-        comment.setId(message.getId());
-        comment.setAuthorId(message.getSenderId());
-        comment.setAuthorName("Author Name");
-        comment.setContent(message.getContent());
-        comment.setTimestamp(message.getSentAt());
-        comment.setConventionId("CONV-001");
-        comment.setConventionReference("CONV-001");
-        comment.setUrgent(false);
-        return comment;
-    }
 
     private List<EscalationItem> getActiveEscalationItemsForTeam() {
         List<EscalationItem> items = new ArrayList<>();
@@ -271,5 +248,260 @@ public class ProjectManagerDashboardService {
         
         items.add(item);
         return items;
+    }
+
+    // ===== NOUVELLES MÉTHODES POUR STATISTIQUES COMPLÈTES =====
+    
+    public ProjectManagerStatsDTO getCompleteStats() {
+        ProjectManagerStatsDTO stats = new ProjectManagerStatsDTO();
+        
+        List<Convention> conventions = conventionRepository.findAll();
+        List<Invoice> invoices = invoiceRepository.findAll();
+        
+        LocalDate now = LocalDate.now();
+        LocalDate thirtyDaysFromNow = now.plusDays(30);
+        
+        // Conventions
+        stats.setTotalConventions((int) conventions.stream()
+            .filter(c -> "ACTIVE".equals(c.getStatus()) || "PENDING".equals(c.getStatus()))
+            .count());
+        stats.setExpiredConventions((int) conventions.stream()
+            .filter(c -> "EXPIRED".equals(c.getStatus()))
+            .count());
+        stats.setActiveConventions((int) conventions.stream()
+            .filter(c -> "ACTIVE".equals(c.getStatus()))
+            .count());
+        
+        // Échéances proches (30 jours)
+        stats.setUpcomingDeadlines((int) conventions.stream()
+            .filter(c -> c.getEndDate() != null)
+            .filter(c -> {
+                LocalDate endDate = c.getEndDate();
+                return !endDate.isBefore(now) && !endDate.isAfter(thirtyDaysFromNow);
+            })
+            .count());
+        
+        // Factures
+        stats.setTotalInvoices(invoices.size());
+        stats.setTotalInvoicesAmount(invoices.stream()
+            .mapToDouble(i -> i.getAmount() != null ? i.getAmount().doubleValue() : 0.0)
+            .sum());
+        stats.setOverdueInvoices((int) invoices.stream()
+            .filter(i -> "OVERDUE".equals(i.getStatus()))
+            .count());
+        stats.setPaidInvoices((int) invoices.stream()
+            .filter(i -> "PAID".equals(i.getStatus()))
+            .count());
+        stats.setPendingInvoices((int) invoices.stream()
+            .filter(i -> "PENDING".equals(i.getStatus()))
+            .count());
+        
+        // Pourcentage de retard
+        if (stats.getTotalInvoices() > 0) {
+            stats.setOverduePercentage((double) stats.getOverdueInvoices() / stats.getTotalInvoices() * 100);
+        } else {
+            stats.setOverduePercentage(0.0);
+        }
+        
+        // Performance d'équipe (basée sur le taux de factures payées)
+        if (stats.getTotalInvoices() > 0) {
+            stats.setTeamPerformance((double) stats.getPaidInvoices() / stats.getTotalInvoices() * 100);
+        } else {
+            stats.setTeamPerformance(85.0); // Valeur par défaut
+        }
+        
+        // Taux de régularisation (factures payées après avoir été en retard)
+        // Pour simplifier, on utilise un calcul basé sur les factures payées
+        stats.setRegularizationRate(72.0); // Valeur par défaut, à calculer avec historique
+        
+        // Alertes (à implémenter avec un système d'alertes)
+        stats.setPendingAlerts(0);
+        
+        return stats;
+    }
+    
+    // ===== GESTION DES COMMENTAIRES INTERNES =====
+    
+    public List<InternalCommentDTO> getAllComments() {
+        List<com.example.demo.model.InternalComment> comments = internalCommentRepository.findAllByOrderByDateDesc();
+        return comments.stream()
+            .map(this::convertToCommentDTO)
+            .collect(Collectors.toList());
+    }
+    
+    public InternalCommentDTO addComment(InternalCommentDTO commentDTO, String currentUsername) {
+        com.example.demo.model.InternalComment comment = new com.example.demo.model.InternalComment();
+        comment.setAuthor(currentUsername);
+        comment.setContent(commentDTO.getContent());
+        comment.setDate(LocalDateTime.now());
+        comment.setCreatedAt(LocalDateTime.now());
+        comment.setCreatedBy(currentUsername);
+        
+        // Si un commercial est mentionné
+        if (commentDTO.getMentionedCommercialId() != null) {
+            comment.setMentionedCommercialId(commentDTO.getMentionedCommercialId());
+            Optional<User> commercial = userRepository.findById(commentDTO.getMentionedCommercialId());
+            commercial.ifPresent(user -> comment.setMentionedCommercialName(user.getName()));
+        }
+        
+        com.example.demo.model.InternalComment saved = internalCommentRepository.save(comment);
+        return convertToCommentDTO(saved);
+    }
+    
+    private InternalCommentDTO convertToCommentDTO(com.example.demo.model.InternalComment comment) {
+        InternalCommentDTO dto = new InternalCommentDTO();
+        dto.setId(comment.getId());
+        dto.setAuthor(comment.getAuthor());
+        dto.setContent(comment.getContent());
+        dto.setDate(comment.getDate());
+        dto.setMentionedCommercialId(comment.getMentionedCommercialId());
+        dto.setMentionedCommercialName(comment.getMentionedCommercialName());
+        return dto;
+    }
+    
+    // ===== MÉTHODES POUR LES MEMBRES DE L'ÉQUIPE =====
+    
+    public List<User> getTeamMembersWithDetails() {
+        return userRepository.findAll().stream()
+            .filter(user -> user.getRoles().stream()
+                .anyMatch(role -> role.getName().toString().contains("COMMERCIAL")))
+            .collect(Collectors.toList());
+    }
+    
+    public List<TeamMemberStatsDTO> getTeamMembersStats() {
+        List<User> commercials = userRepository.findAll().stream()
+            .filter(user -> user.getRoles().stream()
+                .anyMatch(role -> role.getName().toString().contains("COMMERCIAL")))
+            .collect(Collectors.toList());
+        
+        List<Convention> allConventions = conventionRepository.findAll();
+        List<Invoice> allInvoices = invoiceRepository.findAll();
+        
+        return commercials.stream()
+            .map(commercial -> calculateCommercialStats(commercial, allConventions, allInvoices))
+            .collect(Collectors.toList());
+    }
+    
+    private TeamMemberStatsDTO calculateCommercialStats(User commercial, List<Convention> allConventions, List<Invoice> allInvoices) {
+        TeamMemberStatsDTO stats = new TeamMemberStatsDTO();
+        
+        stats.setId(commercial.getId());
+        stats.setUsername(commercial.getUsername());
+        stats.setName(commercial.getName() != null ? commercial.getName() : commercial.getUsername());
+        stats.setEmail(commercial.getEmail());
+        stats.setRole("COMMERCIAL");
+        stats.setAvatar(commercial.getAvatar());
+        stats.setStatus("online");
+        stats.setLastActivity(commercial.getLastLoginAt() != null ? 
+            LocalDateTime.ofInstant(commercial.getLastLoginAt(), java.time.ZoneId.systemDefault()) : 
+            LocalDateTime.now());
+        
+        List<Convention> commercialConventions = allConventions.stream()
+            .filter(c -> commercial.getId().equals(c.getCreatedBy()) || commercial.getUsername().equals(c.getCreatedBy()))
+            .collect(Collectors.toList());
+        
+        stats.setAssignedConventions(commercialConventions.size());
+        stats.setActiveConventions((int) commercialConventions.stream().filter(c -> "ACTIVE".equals(c.getStatus())).count());
+        stats.setExpiredConventions((int) commercialConventions.stream().filter(c -> "EXPIRED".equals(c.getStatus())).count());
+        
+        Set<String> conventionIds = commercialConventions.stream().map(Convention::getId).collect(Collectors.toSet());
+        
+        List<Invoice> commercialInvoices = allInvoices.stream()
+            .filter(i -> conventionIds.contains(i.getConventionId()))
+            .collect(Collectors.toList());
+        
+        stats.setTotalInvoices(commercialInvoices.size());
+        stats.setOverdueInvoices((int) commercialInvoices.stream().filter(i -> "OVERDUE".equals(i.getStatus())).count());
+        stats.setPaidInvoices((int) commercialInvoices.stream().filter(i -> "PAID".equals(i.getStatus())).count());
+        stats.setPendingInvoices((int) commercialInvoices.stream().filter(i -> "PENDING".equals(i.getStatus())).count());
+        
+        if (stats.getTotalInvoices() > 0) {
+            stats.setPaymentRate((double) stats.getPaidInvoices() / stats.getTotalInvoices() * 100);
+        } else {
+            stats.setPaymentRate(0.0);
+        }
+        
+        stats.setPerformanceScore(calculatePerformanceScore(stats));
+        stats.setCurrentTask(null);
+        
+        return stats;
+    }
+    
+    private double calculatePerformanceScore(TeamMemberStatsDTO stats) {
+        double score = 0.0;
+        score += stats.getPaymentRate() * 0.4;
+        score += (stats.getActiveConventions() > 0 ? 30.0 : 0.0);
+        score += (stats.getOverdueInvoices() == 0 ? 30.0 : Math.max(0, 30.0 - stats.getOverdueInvoices() * 5));
+        return Math.min(100.0, score);
+    }
+    
+    /**
+     * Calcule le taux de conformité des paiements
+     * Conformité = factures payées à temps / total factures
+     */
+    public ComplianceRateDTO calculateComplianceRate() {
+        List<Invoice> allInvoices = invoiceRepository.findAll();
+        
+        ComplianceRateDTO dto = new ComplianceRateDTO();
+        dto.setTotalInvoices(allInvoices.size());
+        
+        int paidOnTime = 0;
+        int paidLate = 0;
+        int unpaid = 0;
+        int overdue = 0;
+        long totalDelayDays = 0;
+        int paidInvoicesCount = 0;
+        
+        LocalDate today = LocalDate.now();
+        
+        for (Invoice invoice : allInvoices) {
+            if ("PAID".equals(invoice.getStatus())) {
+                paidInvoicesCount++;
+                
+                // Vérifier si payé à temps
+                if (invoice.getPaymentDate() != null && invoice.getDueDate() != null) {
+                    if (invoice.getPaymentDate().isAfter(invoice.getDueDate())) {
+                        // Payé en retard
+                        paidLate++;
+                        long delay = ChronoUnit.DAYS.between(invoice.getDueDate(), invoice.getPaymentDate());
+                        totalDelayDays += delay;
+                    } else {
+                        // Payé à temps
+                        paidOnTime++;
+                    }
+                } else {
+                    // Pas de date de paiement, considérer comme à temps
+                    paidOnTime++;
+                }
+            } else if ("OVERDUE".equals(invoice.getStatus())) {
+                overdue++;
+                unpaid++;
+            } else if ("PENDING".equals(invoice.getStatus())) {
+                // Vérifier si en retard
+                if (invoice.getDueDate() != null && invoice.getDueDate().isBefore(today)) {
+                    overdue++;
+                }
+                unpaid++;
+            } else {
+                unpaid++;
+            }
+        }
+        
+        dto.setPaidOnTime(paidOnTime);
+        dto.setPaidLate(paidLate);
+        dto.setUnpaid(unpaid);
+        dto.setOverdue(overdue);
+        
+        // Calculer le délai moyen
+        if (paidLate > 0) {
+            dto.setAverageDelayDays((double) totalDelayDays / paidLate);
+        } else {
+            dto.setAverageDelayDays(0.0);
+        }
+        
+        // Calculer les taux
+        dto.calculateRates();
+        
+        return dto;
     }
 }

@@ -31,10 +31,14 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
@@ -42,6 +46,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final AuditLogService auditLogService;
+    private final EmailService emailService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -159,8 +164,15 @@ public class AuthService {
         }
 
         String twoFactorCode = generateTwoFactorCode();
-        // TODO: Envoyer le code 2FA par email
-        System.out.println("Code 2FA pour " + user.getEmail() + ": " + twoFactorCode);
+        
+        // Envoyer le code 2FA par email
+        try {
+            emailService.send2FACode(user.getEmail(), twoFactorCode, user.getUsername());
+            logger.info("Code 2FA envoyé à l'email: {}", user.getEmail());
+        } catch (Exception e) {
+            logger.error("Erreur lors de l'envoi du code 2FA: {}", e.getMessage(), e);
+            throw new RuntimeException("Impossible d'envoyer le code 2FA");
+        }
 
         return new TwoFactorResponse("Two-factor authentication code sent", true, null);
     }
@@ -198,8 +210,15 @@ public class AuthService {
         user.setRoles(userRoles);
         User savedUser = userRepository.save(user);
         auditLogService.logUserAction(savedUser, ActionType.USER_CREATED, "User registered successfully");
-        // TODO: Envoyer l'email de bienvenue
-        System.out.println("Email de bienvenue pour " + savedUser.getEmail());
+        
+        // Envoyer l'email de bienvenue
+        try {
+            emailService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getUsername());
+            logger.info("Email de bienvenue envoyé à: {}", savedUser.getEmail());
+        } catch (Exception e) {
+            logger.warn("Impossible d'envoyer l'email de bienvenue: {}", e.getMessage());
+        }
+        
         return savedUser;
     }
 
@@ -249,31 +268,91 @@ public class AuthService {
 
     @Transactional
     public void initiatePasswordReset(String email) {
-        User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        // 🔒 SÉCURITÉ: Ne pas révéler si l'email existe ou non
+        // Toujours retourner un succès, mais n'envoyer l'email que si l'utilisateur existe
+        
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        
+        if (userOpt.isEmpty()) {
+            // L'email n'existe pas dans la base de données
+            logger.warn("⚠️ Tentative de réinitialisation pour un email inexistant: {}", email);
+            // Ne pas lancer d'exception pour ne pas révéler que l'email n'existe pas
+            // L'utilisateur verra le même message de succès
+            return;
+        }
+        
+        User user = userOpt.get();
+        
+        // Vérifier que l'utilisateur est actif
+        if (!user.isActive()) {
+            logger.warn("⚠️ Tentative de réinitialisation pour un compte bloqué: {}", email);
+            // Ne pas envoyer d'email pour un compte bloqué
+            return;
+        }
+        
         String resetToken = generateSecurePassword();
         user.setResetToken(resetToken);
         user.setResetTokenExpiry(Instant.now().plus(1, ChronoUnit.HOURS));
-        userRepository.save(user);
-        // TODO: Envoyer l'email de réinitialisation
-        System.out.println("Email de réinitialisation pour " + user.getEmail() + " avec token: " + resetToken);
+        
+        logger.info("🔐 Token généré pour {}: {}", user.getEmail(), resetToken);
+        logger.info("🔐 Expiration du token: {}", user.getResetTokenExpiry());
+        
+        User savedUser = userRepository.save(user);
+        logger.info("✅ Token sauvegardé dans la base de données pour: {}", savedUser.getEmail());
+        
+        logger.info("🔐 Demande de réinitialisation de mot de passe pour: {}", user.getEmail());
+        
+        // Envoyer l'email de réinitialisation
+        try {
+            emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
+            logger.info("✅ Email de réinitialisation envoyé à: {}", user.getEmail());
+        } catch (Exception e) {
+            logger.error("❌ Erreur lors de l'envoi de l'email de réinitialisation: {}", e.getMessage());
+            // Ne pas bloquer le processus même si l'email échoue
+        }
     }
 
     @Transactional
     public void completePasswordReset(String token, String newPassword) {
-        User user = userRepository.findByResetToken(token)
-            .orElseThrow(() -> new BadRequestException("Invalid or expired reset token"));
+        logger.info("🔍 Recherche du token: {}", token);
+        
+        Optional<User> userOpt = userRepository.findByResetToken(token);
+        if (userOpt.isEmpty()) {
+            logger.error("❌ Token non trouvé dans la base de données: {}", token);
+            throw new BadRequestException("Token invalide ou expiré");
+        }
+        
+        User user = userOpt.get();
+        logger.info("✅ Token trouvé pour l'utilisateur: {}", user.getEmail());
+        
+        // Vérifier si le token n'est pas expiré
+        if (user.getResetTokenExpiry() != null && user.getResetTokenExpiry().isBefore(Instant.now())) {
+            logger.error("❌ Token expiré pour: {}. Expiration: {}, Maintenant: {}", 
+                user.getEmail(), user.getResetTokenExpiry(), Instant.now());
+            throw new BadRequestException("Le token de réinitialisation a expiré. Veuillez faire une nouvelle demande.");
+        }
+        
+        logger.info("✅ Token valide pour: {}", user.getEmail());
+        
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setResetToken(null);
         user.setResetTokenExpiry(null);
-        user.setForcePasswordChange(true);
+        user.setForcePasswordChange(false); // Pas besoin de forcer le changement après reset
         userRepository.save(user);
+        
+        logger.info("✅ Mot de passe réinitialisé avec succès pour: {}", user.getEmail());
+        auditLogService.logUserAction(user, ActionType.UPDATE, "Mot de passe réinitialisé via email");
     }
 
     private String generateSecurePassword() {
         byte[] randomBytes = new byte[24];
         secureRandom.nextBytes(randomBytes);
-        return Base64.getEncoder().encodeToString(randomBytes);
+        // Utiliser l'encodeur URL-safe pour éviter les problèmes avec les caractères spéciaux dans l'URL
+        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+        System.out.println("========================================");
+        System.out.println("🔑 TOKEN GÉNÉRÉ: " + token);
+        System.out.println("========================================");
+        return token;
     }
 
     private String generateTwoFactorCode() {

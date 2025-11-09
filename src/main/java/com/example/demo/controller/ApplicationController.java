@@ -4,7 +4,6 @@ import com.example.demo.model.Application;
 import com.example.demo.repository.ApplicationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,19 +19,20 @@ public class ApplicationController {
 
     // Récupérer toutes les applications
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<List<Application>> getAllApplications() {
         try {
             List<Application> applications = applicationRepository.findAll();
+            System.out.println("✅ [GET APPLICATIONS] " + applications.size() + " applications récupérées");
             return ResponseEntity.ok(applications);
         } catch (Exception e) {
+            System.err.println("❌ [GET APPLICATIONS] Erreur: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
     }
 
     // Récupérer une application par ID
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<Application> getApplicationById(@PathVariable String id) {
         try {
             Optional<Application> application = applicationRepository.findById(id);
@@ -45,7 +45,6 @@ public class ApplicationController {
 
     // Créer une nouvelle application
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<?> createApplication(@RequestBody Application application) {
         try {
             // Vérifier que les champs obligatoires sont présents
@@ -72,7 +71,6 @@ public class ApplicationController {
 
     // Mettre à jour une application
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<Application> updateApplication(@PathVariable String id, @RequestBody Application application) {
         try {
             if (!applicationRepository.existsById(id)) {
@@ -89,7 +87,6 @@ public class ApplicationController {
 
     // Supprimer une application
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<Void> deleteApplication(@PathVariable String id) {
         try {
             if (!applicationRepository.existsById(id)) {
@@ -105,7 +102,6 @@ public class ApplicationController {
 
     // Désactiver une application (au lieu de la supprimer)
     @PutMapping("/{id}/deactivate")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<Application> deactivateApplication(@PathVariable String id) {
         try {
             Optional<Application> applicationOpt = applicationRepository.findById(id);

@@ -57,8 +57,46 @@ public class ConversationService {
         if (userId == null || userId.isBlank()) return List.of();
         List<Conversation> conversations = conversationRepository.findByParticipantIdsContaining(userId);
         if (conversations == null) return List.of();
-        // Si le champ lastMessageAt existe, on trie en mémoire pour éviter les échecs de mapping
+        
+        // Dédoublonner les conversations DIRECT basées sur les participants
         conversations = conversations.stream()
+            .collect(Collectors.toMap(
+                conv -> {
+                    // Pour les conversations DIRECT, créer une clé unique basée sur les participants triés
+                    if ("DIRECT".equals(conv.getType()) && conv.getParticipantIds() != null && conv.getParticipantIds().size() >= 2) {
+                        List<String> sortedIds = conv.getParticipantIds().stream().sorted().collect(Collectors.toList());
+                        return "DIRECT_" + String.join("_", sortedIds);
+                    }
+                    // Pour les autres types, utiliser l'ID
+                    return conv.getId();
+                },
+                conv -> conv,
+                (existing, replacement) -> existing // Garder la première occurrence
+            ))
+            .values()
+            .stream()
+            // Filtrer les conversations invalides (sans nom et sans participants valides)
+            .filter(conv -> {
+                // Exclure les conversations DIRECT sans nom valide
+                if ("DIRECT".equals(conv.getType())) {
+                    if (conv.getName() == null || conv.getName().isBlank() || 
+                        conv.getName().equals("Conversation sans nom") ||
+                        conv.getName().equals("Sans nom")) {
+                        return false; // Ignorer complètement ces conversations
+                    }
+                    
+                    // Vérifier que l'utilisateur actuel fait partie de cette conversation
+                    if (conv.getParticipantIds() != null && !conv.getParticipantIds().contains(userId)) {
+                        return false; // L'utilisateur ne fait pas partie de cette conversation
+                    }
+                }
+                // Pour les autres types, vérifier qu'il y a un nom
+                if (conv.getName() == null || conv.getName().isBlank()) {
+                    return false;
+                }
+                return true;
+            })
+            // Trier par date du dernier message
             .sorted((a,b) -> {
                 if (a.getLastMessageAt() == null && b.getLastMessageAt() == null) return 0;
                 if (a.getLastMessageAt() == null) return 1;
@@ -66,6 +104,7 @@ public class ConversationService {
                 return b.getLastMessageAt().compareTo(a.getLastMessageAt());
             })
             .collect(Collectors.toList());
+            
         return conversations.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
@@ -77,6 +116,12 @@ public class ConversationService {
 
     // Récupérer une conversation directe entre deux utilisateurs
     public ConversationDTO getDirectConversation(String userId1, String userId2) {
+        // ❌ BLOQUER les conversations avec soi-même
+        if (userId1 != null && userId1.equals(userId2)) {
+            System.out.println("🚫 Tentative de conversation avec soi-même bloquée: " + userId1);
+            return null;
+        }
+        
         List<Conversation> conversations = conversationRepository.findDirectConversationBetweenUsers(userId1, userId2);
         if (!conversations.isEmpty()) {
             return convertToDTO(conversations.get(0));
@@ -86,6 +131,12 @@ public class ConversationService {
 
     // Créer ou mettre à jour une conversation directe
     public void updateOrCreateDirectConversation(String userId1, String userId2, Message message) {
+        // ❌ BLOQUER les conversations avec soi-même
+        if (userId1 != null && userId1.equals(userId2)) {
+            System.out.println("🚫 Tentative de conversation avec soi-même bloquée: " + userId1);
+            return;
+        }
+        
         List<Conversation> existingConversations = conversationRepository.findDirectConversationBetweenUsers(userId1, userId2);
         
         Conversation conversation;

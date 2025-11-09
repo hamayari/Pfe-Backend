@@ -26,4 +26,10 @@ public interface ConventionRepository extends MongoRepository<Convention, String
     // Méthodes pour le scheduler de notifications
     List<Convention> findByEcheancesContaining(LocalDate echeance);
     List<Convention> findByEcheancesContainingAndStatusNot(LocalDate echeance, String status);
+    
+    // Recherche par client
+    List<Convention> findByClient(String client);
+    
+    // Recherche par référence
+    Convention findByReference(String reference);
 }

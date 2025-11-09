@@ -34,11 +34,19 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        // Ignore JWT filter for public auth endpoints
-        AntPathRequestMatcher publicMatcher = new AntPathRequestMatcher("/api/auth/**");
+        // Ignore JWT filter for public auth endpoints (but NOT 2FA endpoints which require authentication)
+        AntPathRequestMatcher loginMatcher = new AntPathRequestMatcher("/api/auth/signin");
+        AntPathRequestMatcher signupMatcher = new AntPathRequestMatcher("/api/auth/signup");
+        AntPathRequestMatcher refreshMatcher = new AntPathRequestMatcher("/api/auth/refresh");
+        AntPathRequestMatcher forgotPasswordMatcher = new AntPathRequestMatcher("/api/auth/forgot-password");
+        AntPathRequestMatcher resetPasswordMatcher = new AntPathRequestMatcher("/api/auth/reset-password");
         AntPathRequestMatcher wsMatcher = new AntPathRequestMatcher("/api/ws/**");
         AntPathRequestMatcher wsUltraSimpleMatcher = new AntPathRequestMatcher("/ws-ultra-simple");
-        if (publicMatcher.matches(request) || wsMatcher.matches(request) || wsUltraSimpleMatcher.matches(request)) {
+        
+        if (loginMatcher.matches(request) || signupMatcher.matches(request) || 
+            refreshMatcher.matches(request) || forgotPasswordMatcher.matches(request) || 
+            resetPasswordMatcher.matches(request) || wsMatcher.matches(request) || 
+            wsUltraSimpleMatcher.matches(request)) {
             filterChain.doFilter(request, response);
             return;
         }

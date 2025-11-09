@@ -4,6 +4,8 @@ import com.example.demo.model.Convention;
 import com.example.demo.service.ConventionService;
 import com.example.demo.dto.convention.ConventionRequest;
 import com.example.demo.security.UserPrincipal;
+import com.example.demo.scheduler.ConventionStatusScheduler;
+// import com.example.demo.scheduler.ConventionAlertScheduler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,17 +24,35 @@ public class ConventionController {
 
     @Autowired
     private ConventionService conventionService;
+    
+    @Autowired
+    private ConventionStatusScheduler conventionStatusScheduler;
+    
+    // @Autowired
+    // private ConventionAlertScheduler conventionAlertScheduler;
 
     @PostMapping
     public ResponseEntity<Convention> createConvention(
-            @Valid @RequestBody ConventionRequest request) {
-        System.out.println("🚀 ConventionController.createConvention() appelé");
+            @Valid @RequestBody ConventionRequest request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        System.out.println("========================================");
+        System.out.println("🚀 [CREATE CONVENTION] Création d'une convention");
         System.out.println("📋 Référence: " + request.getReference());
         System.out.println("📋 Titre: " + request.getTitle());
         
+        if (userPrincipal == null) {
+            System.out.println("❌ Aucun utilisateur authentifié");
+            return ResponseEntity.status(401).build();
+        }
+        
+        String username = userPrincipal.getUsername();
+        System.out.println("👤 Créée par: " + username);
+        
         try {
-            Convention result = conventionService.createConvention(request, "commercial");
+            Convention result = conventionService.createConvention(request, username);
             System.out.println("✅ Convention créée avec succès: " + result.getId());
+            System.out.println("✅ createdBy: " + result.getCreatedBy());
+            System.out.println("========================================");
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             System.out.println("❌ Erreur lors de la création de convention: " + e.getMessage());
@@ -67,32 +87,55 @@ public class ConventionController {
     public ResponseEntity<List<Convention>> getAllConventions(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         try {
-            System.out.println("🔍 getAllConventions appelé - UserPrincipal: " + (userPrincipal != null ? userPrincipal.getUsername() : "null"));
-            if (userPrincipal != null) {
-                System.out.println("🔍 Rôles de l'utilisateur: " + userPrincipal.getAuthorities());
-                System.out.println("🔍 ID utilisateur: " + userPrincipal.getId());
+            System.out.println("========================================");
+            System.out.println("📋 [GET CONVENTIONS] Endpoint appelé");
+            System.out.println("👤 Utilisateur: " + (userPrincipal != null ? userPrincipal.getUsername() : "null"));
+            
+            if (userPrincipal == null) {
+                System.out.println("❌ Aucun utilisateur authentifié");
+                return ResponseEntity.ok(new java.util.ArrayList<>());
             }
             
-            // Pour les commerciaux et super admin, afficher TOUTES les conventions
-            if (userPrincipal != null && userPrincipal.getAuthorities().stream()
-                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_COMMERCIAL") || auth.getAuthority().equals("ROLE_SUPER_ADMIN"))) {
-                List<Convention> conventions = conventionService.getAllConventions();
-                System.out.println("✅ " + conventions.size() + " conventions trouvées pour le commercial");
-                return ResponseEntity.ok(conventions);
+            System.out.println("🎭 Rôles: " + userPrincipal.getAuthorities());
+            System.out.println("🆔 ID: " + userPrincipal.getId());
+            
+            // Vérifier si l'utilisateur est COMMERCIAL
+            boolean isCommercial = userPrincipal.getAuthorities().stream()
+                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_COMMERCIAL"));
+            
+            // Vérifier si l'utilisateur peut voir TOUTES les données
+            boolean canViewAll = userPrincipal.getAuthorities().stream()
+                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_PROJECT_MANAGER") ||
+                                     auth.getAuthority().equals("ROLE_DECISION_MAKER") ||
+                                     auth.getAuthority().equals("ROLE_ADMIN") ||
+                                     auth.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            
+            List<Convention> conventions;
+            
+            if (canViewAll) {
+                // Chef de projet, Décideur, Admin: Voir TOUTES les conventions
+                System.out.println("✅ Utilisateur autorisé à voir TOUTES les conventions");
+                conventions = conventionService.getAllConventions();
+            } else if (isCommercial) {
+                // COMMERCIAL: Voir UNIQUEMENT SES PROPRES conventions
+                System.out.println("⚠️  COMMERCIAL - Filtrage par createdBy: " + userPrincipal.getUsername());
+                conventions = conventionService.getAllConventionsByUser(userPrincipal.getUsername());
             } else {
-                // Pour les autres rôles, garder le filtrage par utilisateur
-                System.out.println("⚠️ Utilisateur n'est pas commercial, filtrage par utilisateur");
-                if (userPrincipal != null) {
-                    List<Convention> userConventions = conventionService.getAllConventionsByUser(userPrincipal.getId());
-                    System.out.println("✅ " + userConventions.size() + " conventions trouvées pour l'utilisateur " + userPrincipal.getId());
-                    return ResponseEntity.ok(userConventions);
-                } else {
-                    System.out.println("❌ UserPrincipal est null");
-                    return ResponseEntity.ok(new java.util.ArrayList<>());
-                }
+                // Utilisateur sans rôle spécifique
+                System.out.println("⚠️  Utilisateur sans rôle spécifique - Filtrage par ID");
+                conventions = conventionService.getAllConventionsByUser(userPrincipal.getId());
             }
+            
+            // Enrichir les conventions avec le nom du commercial
+            conventions = conventionService.enrichConventionsWithCommercialNames(conventions);
+            
+            System.out.println("📊 Nombre de conventions retournées: " + conventions.size());
+            System.out.println("========================================");
+            
+            return ResponseEntity.ok(conventions);
         } catch (Exception e) {
-            // Retourner une liste vide en cas d'erreur pour éviter les erreurs 500
+            System.err.println("❌ Erreur: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.ok(new java.util.ArrayList<>());
         }
     }
@@ -184,4 +227,33 @@ public class ConventionController {
         conventionService.deleteConvention(id);
         return ResponseEntity.ok().build();
     }
+    
+    /**
+     * Endpoint pour forcer la mise à jour des statuts des conventions
+     * Utile pour les tests ou pour une mise à jour manuelle
+     */
+    @PostMapping("/update-statuses")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROJECT_MANAGER')")
+    public ResponseEntity<Map<String, String>> forceUpdateStatuses() {
+        conventionStatusScheduler.forceUpdate();
+        return ResponseEntity.ok(Map.of(
+            "message", "✅ Mise à jour des statuts lancée avec succès",
+            "status", "success"
+        ));
+    }
+    
+    /**
+     * Endpoint pour forcer l'envoi des alertes d'échéance
+     * Utile pour les tests ou pour un envoi manuel
+     * TODO: Décommenter après résolution des dépendances
+     */
+    // @PostMapping("/send-alerts")
+    // @PreAuthorize("hasAnyRole('ADMIN', 'PROJECT_MANAGER')")
+    // public ResponseEntity<Map<String, String>> forceSendAlerts() {
+    //     conventionAlertScheduler.forceAlerts();
+    //     return ResponseEntity.ok(Map.of(
+    //         "message", "✅ Envoi des alertes lancé avec succès",
+    //         "status", "success"
+    //     ));
+    // }
 }

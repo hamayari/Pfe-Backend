@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmation de paiement</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            color: #333;
+            background-color: #f9f9f9;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .email-wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .header {
+            background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #8bc34a, #cddc39, #8bc34a);
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .header p {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 24px;
+            color: #333;
+        }
+        .success-banner {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-left: 5px solid #4caf50;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 24px 0;
+            text-align: center;
+        }
+        .success-banner h3 {
+            color: #2e7d32;
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        .success-banner p {
+            color: #2e7d32;
+            font-size: 15px;
+        }
+        .payment-summary {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 24px;
+            margin: 24px 0;
+            border: 1px solid #e9ecef;
+        }
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .summary-row:last-child {
+            border-bottom: none;
+            padding-top: 16px;
+            margin-top: 8px;
+            border-top: 2px solid #4caf50;
+        }
+        .summary-label {
+            color: #6c757d;
+            font-size: 15px;
+        }
+        .summary-value {
+            color: #212529;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .total-amount {
+            font-size: 24px !important;
+            color: #4caf50 !important;
+            font-weight: 700 !important;
+        }
+        .details-card {
+            background: white;
+            border-radius: 10px;
+            padding: 24px;
+            margin: 24px 0;
+            border: 1px solid #e9ecef;
+        }
+        .detail-row {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-icon {
+            width: 40px;
+            height: 40px;
+            background: #e8f5e9;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+            font-size: 20px;
+        }
+        .detail-content {
+            flex: 1;
+        }
+        .detail-label {
+            font-size: 13px;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+        .detail-value {
+            font-size: 16px;
+            color: #212529;
+            font-weight: 600;
+        }
+        .action-section {
+            background: #e8f5e9;
+            border-radius: 10px;
+            padding: 24px;
+            margin: 24px 0;
+            text-align: center;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+            color: white !important;
+            padding: 14px 32px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 12px rgba(76,175,80,0.3);
+            margin: 0 8px;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(76,175,80,0.4);
+        }
+        .cta-button-secondary {
+            background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+            box-shadow: 0 4px 12px rgba(33,150,243,0.3);
+        }
+        .info-box {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 16px;
+            border-radius: 6px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #495057;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+        }
+        .footer-logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #4caf50;
+            margin-bottom: 12px;
+        }
+        .footer p {
+            color: #6c757d;
+            font-size: 13px;
+            margin: 8px 0;
+        }
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #dee2e6, transparent);
+            margin: 24px 0;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            body { padding: 10px; }
+            .header { padding: 30px 20px; }
+            .content { padding: 30px 20px; }
+            .cta-button { display: block; margin: 8px 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <!-- Header -->
+        <div class="header">
+            <div class="success-icon">✅</div>
+            <h1>Paiement confirmé</h1>
+            <p>Votre transaction a été traitée avec succès</p>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <div class="greeting">
+                Bonjour <strong>{{NOM_UTILISATEUR}}</strong>,
+            </div>
+            
+            <div class="success-banner">
+                <h3>🎉 Paiement reçu avec succès !</h3>
+                <p>Nous confirmons la réception de votre paiement pour la facture ci-dessous.</p>
+            </div>
+            
+            <div class="payment-summary">
+                <h3 style="margin-bottom: 16px; color: #212529; font-size: 18px;">💳 Récapitulatif du paiement</h3>
+                <div class="summary-row">
+                    <span class="summary-label">Numéro de facture</span>
+                    <span class="summary-value">{{REFERENCE_FACTURE}}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Date de paiement</span>
+                    <span class="summary-value">{{DATE_PAIEMENT}}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Méthode de paiement</span>
+                    <span class="summary-value">{{METHODE_PAIEMENT}}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Référence de transaction</span>
+                    <span class="summary-value">{{REFERENCE_TRANSACTION}}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Montant payé</span>
+                    <span class="summary-value total-amount">{{MONTANT}} €</span>
+                </div>
+            </div>
+            
+            <div class="details-card">
+                <h3 style="margin-bottom: 16px; color: #212529; font-size: 18px;">📋 Informations complémentaires</h3>
+                <div class="detail-row">
+                    <div class="detail-icon">👤</div>
+                    <div class="detail-content">
+                        <div class="detail-label">Client</div>
+                        <div class="detail-value">{{NOM_CLIENT}}</div>
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-icon">📄</div>
+                    <div class="detail-content">
+                        <div class="detail-label">Description</div>
+                        <div class="detail-value">{{DESCRIPTION}}</div>
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-icon">📅</div>
+                    <div class="detail-content">
+                        <div class="detail-label">Période de facturation</div>
+                        <div class="detail-value">{{PERIODE}}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="action-section">
+                <p style="margin-bottom: 20px; font-size: 15px; color: #495057;">
+                    <strong>📌 Prochaines étapes :</strong> Vous pouvez télécharger votre reçu ou consulter l'historique de vos paiements.
+                </p>
+                <a href="{{LIEN_RECU}}" class="cta-button">
+                    📥 Télécharger le reçu
+                </a>
+                <a href="{{LIEN_HISTORIQUE}}" class="cta-button cta-button-secondary">
+                    📊 Voir l'historique
+                </a>
+            </div>
+            
+            <div class="info-box">
+                <strong>📧 Reçu par email :</strong> Un reçu détaillé a également été envoyé à votre adresse email. Conservez-le pour vos archives.
+            </div>
+            
+            <p style="margin-top: 24px; font-size: 14px; color: #6c757d; text-align: center;">
+                Merci pour votre confiance. Si vous avez des questions, notre équipe support est à votre disposition.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-logo">GestionPro</div>
+            <p>Système de Gestion Commerciale et Facturation</p>
+            <p>Cette confirmation a été générée automatiquement suite à la réception de votre paiement.</p>
+            <div class="divider" style="margin: 16px 0;"></div>
+            <p style="font-size: 12px;">&copy; 2025 GestionPro. Tous droits réservés.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -43,3 +43,17 @@ public class MongoConfig extends AbstractMongoClientConfiguration {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.ArrayList;
 import com.example.demo.repository.ApplicationRepository;
 import com.example.demo.repository.StructureRepository;
+import com.example.demo.repository.ZoneGeographiqueRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @RestController
 @RequestMapping("/api/admin/dashboard")
@@ -35,20 +37,40 @@ public class AdminDashboardController {
     private final AuditLogRepository auditLogRepository;
     private final ApplicationRepository applicationRepository;
     private final StructureRepository structureRepository;
+    private final ZoneGeographiqueRepository zoneGeographiqueRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public AdminDashboardController(UserRepository userRepository, RoleRepository roleRepository, ConventionRepository conventionRepository, AuditLogRepository auditLogRepository, ApplicationRepository applicationRepository, StructureRepository structureRepository) {
-        this.adminDashboardService = new AdminDashboardService(userRepository, roleRepository, conventionRepository, auditLogRepository, applicationRepository, null, structureRepository);
+    public AdminDashboardController(UserRepository userRepository, RoleRepository roleRepository, ConventionRepository conventionRepository, AuditLogRepository auditLogRepository, ApplicationRepository applicationRepository, StructureRepository structureRepository, ZoneGeographiqueRepository zoneGeographiqueRepository, PasswordEncoder passwordEncoder) {
+        this.adminDashboardService = new AdminDashboardService(userRepository, roleRepository, conventionRepository, auditLogRepository, applicationRepository, zoneGeographiqueRepository, structureRepository, passwordEncoder);
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.conventionRepository = conventionRepository;
         this.auditLogRepository = auditLogRepository;
         this.applicationRepository = applicationRepository;
         this.structureRepository = structureRepository;
+        this.zoneGeographiqueRepository = zoneGeographiqueRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @GetMapping("/users")
     public ResponseEntity<List<User>> getUsersManagement() {
-        return ResponseEntity.ok(adminDashboardService.getAllUsers());
+        List<User> users = adminDashboardService.getAllUsers();
+        
+        System.out.println("========================================");
+        System.out.println("📋 [GET USERS] Retour de " + users.size() + " utilisateurs");
+        
+        // Logger les détails du premier utilisateur pour debug
+        if (!users.isEmpty()) {
+            User firstUser = users.get(0);
+            System.out.println("👤 Exemple utilisateur:");
+            System.out.println("   Username: " + firstUser.getUsername());
+            System.out.println("   Email: " + firstUser.getEmail());
+            System.out.println("   Phone: " + firstUser.getPhoneNumber());
+            System.out.println("   Roles: " + firstUser.getRoles());
+        }
+        System.out.println("========================================");
+        
+        return ResponseEntity.ok(users);
     }
 
     @GetMapping("/users/{id}")
@@ -69,34 +91,76 @@ public class AdminDashboardController {
     }
 
     @PutMapping("/users/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable String id, @RequestBody User user) {
+    public ResponseEntity<?> updateUser(@PathVariable String id, @RequestBody Map<String, Object> userData) {
+        System.out.println("========================================");
+        System.out.println("✏️ [UPDATE USER] Modification de l'utilisateur ID: " + id);
+        System.out.println("📋 Données reçues: " + userData);
+        
         try {
-            User updatedUser = adminDashboardService.updateUser(id, user);
-            return ResponseEntity.ok(updatedUser);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
-    
-    @PutMapping("/users/{id}/simple")
-    public ResponseEntity<User> updateUserSimple(@PathVariable String id, @RequestBody Map<String, String> userData) {
-        try {
-            String username = userData.get("username");
-            String email = userData.get("email");
-            String name = userData.get("name");
-            String role = userData.get("role");
+            String username = (String) userData.get("username");
+            String email = (String) userData.get("email");
+            String name = (String) userData.get("name");
+            String phoneNumber = (String) userData.get("phoneNumber");
+            String country = (String) userData.get("country");
             
-            User updatedUser = adminDashboardService.updateUserWithRole(id, username, email, name, role);
+            // Gérer les rôles (peut être un tableau)
+            Object rolesObj = userData.get("roles");
+            String role = null;
+            if (rolesObj instanceof List) {
+                List<?> rolesList = (List<?>) rolesObj;
+                if (!rolesList.isEmpty()) {
+                    role = rolesList.get(0).toString();
+                }
+            } else if (rolesObj instanceof String) {
+                role = (String) rolesObj;
+            }
+            
+            System.out.println("   Username: " + username);
+            System.out.println("   Email: " + email);
+            System.out.println("   Phone: " + phoneNumber);
+            System.out.println("   Role: " + role);
+            
+            User updatedUser = adminDashboardService.updateUserComplete(id, username, email, name, phoneNumber, country, role);
+            
+            System.out.println("✅ [UPDATE USER] Utilisateur modifié avec succès");
+            System.out.println("========================================");
+            
             return ResponseEntity.ok(updatedUser);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("❌ [UPDATE USER] Erreur: " + e.getMessage());
+            e.printStackTrace();
+            System.out.println("========================================");
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Erreur lors de la modification: " + e.getMessage());
+            
+            return ResponseEntity.status(400).body(errorResponse);
         }
     }
 
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
-        adminDashboardService.deleteUser(id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Map<String, Object>> deleteUser(@PathVariable String id) {
+        System.out.println("🗑️ [DELETE USER] Suppression de l'utilisateur ID: " + id);
+        
+        try {
+            adminDashboardService.deleteUser(id);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Utilisateur supprimé avec succès");
+            
+            System.out.println("✅ [DELETE USER] Utilisateur supprimé avec succès");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("❌ [DELETE USER] Erreur: " + e.getMessage());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Erreur lors de la suppression: " + e.getMessage());
+            
+            return ResponseEntity.status(500).body(response);
+        }
     }
 
     @GetMapping("/users/search")

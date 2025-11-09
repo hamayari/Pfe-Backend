@@ -94,12 +94,20 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints
                 .requestMatchers(
-                    "/api/auth/**", 
+                    "/api/auth/signin",
+                    "/api/auth/signup",
+                    "/api/auth/refresh",
+                    "/api/auth/forgot-password",
+                    "/api/auth/reset-password",
+                    "/api/init/**",         // Endpoints d'initialisation (bootstrap)
                     "/api/test/**", 
+                    "/api/public/**",       // Endpoints publics pour n8n
                     "/api/conventions/**",  // Temporaire pour test
                     "/api/invoices/**",     // Temporaire pour test
                     "/api/conventions/test",
                     "/api/conventions/debug",
+                    "/api/user-profile/*/phone", // Endpoint pour mise à jour numéro (sécurisé par validation)
+                    "/api/decideur/health",     // Health check du chatbot
                     "/h2-console/**", 
                     "/swagger-ui/**", 
                     "/v3/api-docs/**",
@@ -113,6 +121,8 @@ public class SecurityConfig {
                     "/ws-ultra-simple",
                     "/actuator/health"
                 ).permitAll()
+                // 2FA endpoints require authentication
+                .requestMatchers("/api/auth/2fa/**").authenticated()
                 // Role-based access control
                 .requestMatchers("/api/test/user").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/test/admin").hasAnyRole("ADMIN", "SUPER_ADMIN")
@@ -128,11 +138,24 @@ public class SecurityConfig {
                 // Admin role access - Temporairement désactivé pour le développement
                 .requestMatchers("/api/admin/**")
                     .permitAll() // .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                // Nomenclatures - TEMPORAIREMENT OUVERT POUR DEBUG
+                .requestMatchers(
+                    "/api/applications/**",
+                    "/api/zones-geographiques/**",
+                    "/api/structures/**",
+                    "/api/nomenclatures/**"
+                ).permitAll() // TODO: Remettre hasAnyRole("ADMIN", "SUPER_ADMIN") après debug
                 // Decision maker role access
                 .requestMatchers(
                     "/api/decision-maker/dashboard/**",
-                    "/api/decision-maker/reports/**"
-                ).hasRole("DECISION_MAKER")
+                    "/api/decision-maker/reports/**",
+                    "/api/decideur/**",
+                    "/api/kpi-analysis/**",  // Endpoints KPI pour décideurs et chefs de projet
+                    "/api/kpi/**",  // Endpoints KPI (analyse, alertes)
+                    "/api/kpi-alerts/**",  // Endpoints gestion des alertes
+                    "/api/conversations/**",  // Endpoints conversations/messaging
+                    "/api/messages/**"  // Endpoints messages
+                ).permitAll() // Temporairement pour le développement
                 // Project manager role access
                 .requestMatchers(
                     "/api/project-manager/dashboard/**",

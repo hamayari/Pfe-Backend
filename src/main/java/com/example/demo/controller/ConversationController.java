@@ -31,8 +31,33 @@ public class ConversationController {
     @Autowired
     private MessageService messageService;
 
+    @PostMapping
+    @Operation(summary = "Créer une nouvelle conversation (endpoint principal)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ConversationDTO> createConversationMain(@RequestBody ConversationDTO conversationDTO, Authentication authentication) {
+        try {
+            // Sécuriser le créateur avec l'utilisateur authentifié
+            if (authentication != null && authentication.getName() != null) {
+                User current = userRepository.findByUsername(authentication.getName()).orElse(null);
+                if (current != null && conversationDTO.getCreatedBy() == null) {
+                    conversationDTO.setCreatedBy(current.getId());
+                }
+            }
+            // Fallback si pas de créateur
+            if (conversationDTO.getCreatedBy() == null && conversationDTO.getParticipantIds() != null && !conversationDTO.getParticipantIds().isEmpty()) {
+                conversationDTO.setCreatedBy(conversationDTO.getParticipantIds().get(0));
+            }
+            ConversationDTO createdConversation = conversationService.createConversation(conversationDTO);
+            return ResponseEntity.ok(createdConversation);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur création conversation: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
     @PostMapping("/create")
-    @Operation(summary = "Créer une nouvelle conversation")
+    @Operation(summary = "Créer une nouvelle conversation (legacy)")
     @PreAuthorize("hasAnyRole('COMMERCIAL', 'ADMIN', 'PROJECT_MANAGER', 'DECISION_MAKER')")
     public ResponseEntity<ConversationDTO> createConversation(@RequestBody ConversationDTO conversationDTO) {
         try {

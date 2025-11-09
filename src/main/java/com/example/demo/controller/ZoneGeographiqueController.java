@@ -20,7 +20,7 @@ public class ZoneGeographiqueController {
 
     // Récupérer toutes les zones géographiques
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','COMMERCIAL','PROJECT_MANAGER','DECISION_MAKER')")
     public ResponseEntity<List<ZoneGeographique>> getAllZonesGeographiques() {
         try {
             List<ZoneGeographique> zones = zoneGeographiqueRepository.findAll();
@@ -32,7 +32,7 @@ public class ZoneGeographiqueController {
 
     // Récupérer une zone géographique par ID
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','COMMERCIAL','PROJECT_MANAGER','DECISION_MAKER')")
     public ResponseEntity<ZoneGeographique> getZoneGeographiqueById(@PathVariable String id) {
         try {
             Optional<ZoneGeographique> zone = zoneGeographiqueRepository.findById(id);
@@ -45,7 +45,7 @@ public class ZoneGeographiqueController {
 
     // Créer une nouvelle zone géographique
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     public ResponseEntity<ZoneGeographique> createZoneGeographique(@RequestBody ZoneGeographique zoneGeographique) {
         try {
             // Vérifier l'unicité du code
@@ -62,7 +62,7 @@ public class ZoneGeographiqueController {
 
     // Mettre à jour une zone géographique
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     public ResponseEntity<ZoneGeographique> updateZoneGeographique(@PathVariable String id, @RequestBody ZoneGeographique zoneGeographique) {
         try {
             if (!zoneGeographiqueRepository.existsById(id)) {
@@ -79,7 +79,7 @@ public class ZoneGeographiqueController {
 
     // Supprimer une zone géographique
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     public ResponseEntity<Void> deleteZoneGeographique(@PathVariable String id) {
         try {
             if (!zoneGeographiqueRepository.existsById(id)) {
@@ -95,7 +95,7 @@ public class ZoneGeographiqueController {
 
     // Désactiver une zone géographique
     @PutMapping("/{id}/deactivate")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     public ResponseEntity<ZoneGeographique> deactivateZoneGeographique(@PathVariable String id) {
         try {
             Optional<ZoneGeographique> zoneOpt = zoneGeographiqueRepository.findById(id);
@@ -114,7 +114,7 @@ public class ZoneGeographiqueController {
 
     // Récupérer les zones par gouvernement
     @GetMapping("/by-government/{government}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','COMMERCIAL','PROJECT_MANAGER','DECISION_MAKER')")
     public ResponseEntity<List<ZoneGeographique>> getZonesByGovernment(@PathVariable String government) {
         try {
             List<ZoneGeographique> zones = zoneGeographiqueRepository.findByGouvernement(government);

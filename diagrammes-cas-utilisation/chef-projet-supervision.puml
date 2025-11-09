@@ -1,0 +1,122 @@
+@startuml
+title Diagramme de cas d'utilisation raffiné - Chef de Projet (Supervision)
+
+left to right direction
+
+actor "Chef de Projet" as ChefProjet
+actor "Commercial Métier" as Commercial
+
+rectangle "Fonctionnalités Chef de Projet - Supervision et Interaction" {
+  
+  package "Authentification" {
+    usecase "S'authentifier" as UC_Auth
+    usecase "Se connecter" as UC_Login
+    usecase "Se déconnecter" as UC_Logout
+  }
+  
+  package "Gestion du Profil" {
+    usecase "Consulter mon profil" as UC_Profile
+    usecase "Modifier mon compte" as UC_ModifyAccount
+  }
+  
+  package "Supervision des Conventions" {
+    usecase "Superviser les conventions" as UC_SuperviseConv
+    usecase "Consulter toutes les conventions" as UC_ViewAllConv
+    usecase "Filtrer les conventions" as UC_FilterConv
+    usecase "Rechercher une convention" as UC_SearchConv
+    usecase "Voir les détails d'une convention" as UC_ViewConvDetails
+    usecase "Consulter l'historique des modifications" as UC_ViewConvHistory
+    usecase "Identifier les conventions à risque" as UC_IdentifyRiskConv
+  }
+  
+  package "Supervision des Facturations" {
+    usecase "Superviser les facturations" as UC_SuperviseInv
+    usecase "Consulter toutes les factures" as UC_ViewAllInv
+    usecase "Filtrer les factures" as UC_FilterInv
+    usecase "Voir les factures en retard" as UC_ViewOverdueInv
+    usecase "Voir les factures à échéance proche" as UC_ViewUpcomingInv
+    usecase "Consulter le statut des paiements" as UC_ViewPaymentStatus
+    usecase "Analyser les retards de paiement" as UC_AnalyzeDelays
+    usecase "Voir les preuves de paiement" as UC_ViewPaymentProofs
+  }
+  
+  package "Interaction avec les Commerciaux" {
+    usecase "Interagir avec les commerciaux" as UC_InteractCommercial
+    usecase "Envoyer un message" as UC_SendMessage
+    usecase "Demander des clarifications" as UC_RequestClarification
+    usecase "Signaler un problème" as UC_ReportIssue
+    usecase "Suivre les problèmes signalés" as UC_TrackIssues
+    usecase "Valider une résolution" as UC_ValidateResolution
+    usecase "Ajouter un commentaire" as UC_AddComment
+  }
+  
+  package "Notifications et Alertes" {
+    usecase "Recevoir des notifications" as UC_ReceiveNotif
+    usecase "Être alerté des factures en retard" as UC_AlertOverdue
+    usecase "Être alerté des problèmes" as UC_AlertIssues
+    usecase "Configurer mes alertes" as UC_ConfigAlerts
+  }
+  
+  package "Rapports et Suivi" {
+    usecase "Générer des rapports de suivi" as UC_GenerateReports
+    usecase "Voir le tableau de bord de supervision" as UC_ViewSupervisionDashboard
+    usecase "Exporter les données de suivi" as UC_ExportTracking
+    usecase "Consulter les statistiques" as UC_ViewStats
+    usecase "Voir les indicateurs de performance" as UC_ViewPerformance
+  }
+}
+
+' Relations principales Chef de Projet
+ChefProjet --> UC_Auth
+ChefProjet --> UC_Profile
+ChefProjet --> UC_ModifyAccount
+ChefProjet --> UC_SuperviseConv
+ChefProjet --> UC_SuperviseInv
+ChefProjet --> UC_InteractCommercial
+ChefProjet --> UC_ReceiveNotif
+ChefProjet --> UC_GenerateReports
+
+' Relations Authentification
+UC_Auth ..> UC_Login : <<include>>
+UC_Auth ..> UC_Logout : <<extend>>
+
+' Relations Supervision Conventions
+UC_SuperviseConv ..> UC_ViewAllConv : <<include>>
+UC_ViewAllConv ..> UC_FilterConv : <<extend>>
+UC_ViewAllConv ..> UC_SearchConv : <<extend>>
+UC_ViewAllConv ..> UC_ViewConvDetails : <<extend>>
+UC_ViewConvDetails ..> UC_ViewConvHistory : <<extend>>
+UC_SuperviseConv ..> UC_IdentifyRiskConv : <<extend>>
+
+' Relations Supervision Facturations
+UC_SuperviseInv ..> UC_ViewAllInv : <<include>>
+UC_ViewAllInv ..> UC_FilterInv : <<extend>>
+UC_ViewAllInv ..> UC_ViewOverdueInv : <<extend>>
+UC_ViewAllInv ..> UC_ViewUpcomingInv : <<extend>>
+UC_SuperviseInv ..> UC_ViewPaymentStatus : <<include>>
+UC_SuperviseInv ..> UC_AnalyzeDelays : <<extend>>
+UC_ViewPaymentStatus ..> UC_ViewPaymentProofs : <<extend>>
+
+' Relations Interaction avec Commerciaux
+UC_InteractCommercial ..> UC_SendMessage : <<include>>
+UC_InteractCommercial ..> UC_RequestClarification : <<extend>>
+UC_InteractCommercial ..> UC_ReportIssue : <<extend>>
+UC_ReportIssue ..> UC_TrackIssues : <<include>>
+UC_TrackIssues ..> UC_ValidateResolution : <<extend>>
+UC_InteractCommercial ..> UC_AddComment : <<extend>>
+
+' Relations Notifications
+UC_ReceiveNotif ..> UC_AlertOverdue : <<extend>>
+UC_ReceiveNotif ..> UC_AlertIssues : <<extend>>
+UC_ReceiveNotif ..> UC_ConfigAlerts : <<extend>>
+
+' Relations Rapports
+UC_GenerateReports ..> UC_ViewSupervisionDashboard : <<include>>
+UC_GenerateReports ..> UC_ExportTracking : <<extend>>
+UC_ViewSupervisionDashboard ..> UC_ViewStats : <<include>>
+UC_ViewSupervisionDashboard ..> UC_ViewPerformance : <<include>>
+
+' Interaction bidirectionnelle avec Commercial
+UC_InteractCommercial ..> Commercial : <<communicate>>
+
+@enduml

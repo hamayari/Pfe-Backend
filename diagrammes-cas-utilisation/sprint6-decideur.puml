@@ -1,0 +1,133 @@
+@startuml
+title Diagramme de cas d'utilisation raffiné - Sprint 6 : Décideur (Tableau de Bord)
+
+left to right direction
+
+actor "Décideur" as Decideur
+
+rectangle "Sprint 6 - Tableau de Bord Interactif pour Décideur" {
+  
+  package "Authentification" {
+    usecase "S'authentifier" as UC_Auth
+    usecase "Se connecter" as UC_Login
+    usecase "Se déconnecter" as UC_Logout
+  }
+  
+  package "Gestion du Profil" {
+    usecase "Consulter mon profil" as UC_Profile
+    usecase "Modifier mon compte" as UC_ModifyAccount
+  }
+  
+  package "Accès au Tableau de Bord" {
+    usecase "Consulter le tableau de bord" as UC_Dashboard
+    usecase "Charger les données" as UC_LoadData
+    usecase "Actualiser les données" as UC_RefreshData
+  }
+  
+  package "Filtrage des Données" {
+    usecase "Appliquer des filtres" as UC_ApplyFilters
+    usecase "Filtrer par gouvernorat" as UC_FilterGov
+    usecase "Filtrer par structure" as UC_FilterStruct
+    usecase "Filtrer par application" as UC_FilterApp
+    usecase "Filtrer par période" as UC_FilterPeriod
+    usecase "Filtrer par statut de facture" as UC_FilterStatus
+    usecase "Combiner plusieurs filtres" as UC_CombineFilters
+    usecase "Réinitialiser les filtres" as UC_ResetFilters
+  }
+  
+  package "Visualisation des Données" {
+    usecase "Analyser les données" as UC_AnalyzeData
+    usecase "Voir les indicateurs clés (KPI)" as UC_ViewKPI
+    usecase "Voir le nombre total de conventions" as UC_ViewTotalConv
+    usecase "Voir le montant total des factures" as UC_ViewTotalAmount
+    usecase "Voir le taux de paiement" as UC_ViewPaymentRate
+    usecase "Voir les factures en retard" as UC_ViewOverdue
+    
+    usecase "Consulter les graphiques" as UC_ViewCharts
+    usecase "Voir l'évolution temporelle" as UC_ViewTimeline
+    usecase "Voir la répartition géographique" as UC_ViewGeoDistribution
+    usecase "Voir la répartition par structure" as UC_ViewStructDistribution
+    usecase "Voir la répartition par application" as UC_ViewAppDistribution
+  }
+  
+  package "Analyse Avancée" {
+    usecase "Effectuer une analyse croisée" as UC_CrossAnalysis
+    usecase "Comparer les périodes" as UC_ComparePeriods
+    usecase "Identifier les tendances" as UC_IdentifyTrends
+    usecase "Détecter les anomalies" as UC_DetectAnomalies
+  }
+  
+  package "Export et Rapports" {
+    usecase "Exporter les données" as UC_ExportData
+    usecase "Exporter en PDF" as UC_ExportPDF
+    usecase "Exporter en Excel" as UC_ExportExcel
+    usecase "Générer un rapport personnalisé" as UC_GenerateReport
+    usecase "Planifier des rapports automatiques" as UC_ScheduleReports
+  }
+  
+  package "Personnalisation" {
+    usecase "Personnaliser le tableau de bord" as UC_CustomizeDashboard
+    usecase "Sauvegarder une vue" as UC_SaveView
+    usecase "Charger une vue sauvegardée" as UC_LoadView
+    usecase "Configurer les widgets" as UC_ConfigWidgets
+  }
+}
+
+' Relations principales
+Decideur --> UC_Auth
+Decideur --> UC_Profile
+Decideur --> UC_ModifyAccount
+Decideur --> UC_Dashboard
+Decideur --> UC_ApplyFilters
+Decideur --> UC_AnalyzeData
+Decideur --> UC_ExportData
+Decideur --> UC_CustomizeDashboard
+
+' Relations Authentification
+UC_Auth ..> UC_Login : <<include>>
+UC_Auth ..> UC_Logout : <<extend>>
+
+' Relations Tableau de Bord
+UC_Dashboard ..> UC_LoadData : <<include>>
+UC_Dashboard ..> UC_RefreshData : <<extend>>
+
+' Relations Filtrage
+UC_ApplyFilters ..> UC_FilterGov : <<extend>>
+UC_ApplyFilters ..> UC_FilterStruct : <<extend>>
+UC_ApplyFilters ..> UC_FilterApp : <<extend>>
+UC_ApplyFilters ..> UC_FilterPeriod : <<extend>>
+UC_ApplyFilters ..> UC_FilterStatus : <<extend>>
+UC_ApplyFilters ..> UC_CombineFilters : <<include>>
+UC_ApplyFilters ..> UC_ResetFilters : <<extend>>
+
+' Relations Visualisation
+UC_AnalyzeData ..> UC_ViewKPI : <<include>>
+UC_ViewKPI ..> UC_ViewTotalConv : <<include>>
+UC_ViewKPI ..> UC_ViewTotalAmount : <<include>>
+UC_ViewKPI ..> UC_ViewPaymentRate : <<include>>
+UC_ViewKPI ..> UC_ViewOverdue : <<include>>
+
+UC_AnalyzeData ..> UC_ViewCharts : <<include>>
+UC_ViewCharts ..> UC_ViewTimeline : <<extend>>
+UC_ViewCharts ..> UC_ViewGeoDistribution : <<extend>>
+UC_ViewCharts ..> UC_ViewStructDistribution : <<extend>>
+UC_ViewCharts ..> UC_ViewAppDistribution : <<extend>>
+
+' Relations Analyse Avancée
+UC_AnalyzeData ..> UC_CrossAnalysis : <<extend>>
+UC_CrossAnalysis ..> UC_ComparePeriods : <<extend>>
+UC_CrossAnalysis ..> UC_IdentifyTrends : <<extend>>
+UC_CrossAnalysis ..> UC_DetectAnomalies : <<extend>>
+
+' Relations Export
+UC_ExportData ..> UC_ExportPDF : <<extend>>
+UC_ExportData ..> UC_ExportExcel : <<extend>>
+UC_ExportData ..> UC_GenerateReport : <<include>>
+UC_ExportData ..> UC_ScheduleReports : <<extend>>
+
+' Relations Personnalisation
+UC_CustomizeDashboard ..> UC_SaveView : <<include>>
+UC_CustomizeDashboard ..> UC_LoadView : <<extend>>
+UC_CustomizeDashboard ..> UC_ConfigWidgets : <<include>>
+
+@enduml

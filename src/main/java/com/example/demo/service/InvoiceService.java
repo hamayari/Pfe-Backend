@@ -10,6 +10,7 @@ public interface InvoiceService {
     Invoice createInvoice(InvoiceRequest request, String userId);
     Invoice getInvoiceById(String id);
     List<Invoice> getAllInvoices();
+    List<Invoice> getInvoicesByUser(String username);  // ✅ AJOUTÉ
     Invoice updateInvoiceStatus(String id, String status);
     Invoice updateInvoiceStatusWithAudit(String invoiceId, String status, String commercialId, String commercialName);
     List<Invoice> getInvoicesByConvention(String conventionId);

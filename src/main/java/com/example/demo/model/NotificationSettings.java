@@ -26,4 +26,3 @@ public class NotificationSettings {
     private String quietHoursEnd;   // "08:00"
 }
 
-
