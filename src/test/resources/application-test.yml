@@ -1,0 +1,82 @@
+# Configuration de test pour l'application
+spring:
+  # Configuration MongoDB pour les tests
+  data:
+    mongodb:
+      # Utiliser une base de données de test séparée
+      database: test-commercial-pfe
+      # Pour les tests d'intégration, utiliser une instance locale ou embarquée
+      uri: mongodb://localhost:27017/test-commercial-pfe
+      
+  # Configuration Mail pour les tests (utiliser MailHog ou GreenMail)
+  mail:
+    host: localhost
+    port: 3025
+    username: test
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+    test-connection: false
+    
+  # Configuration de sécurité pour les tests
+  security:
+    user:
+      name: testuser
+      password: testpassword
+      
+# Configuration JWT pour les tests
+app:
+  jwtSecret: testSecretKeyForJunitTestsOnlyNotForProduction12345678901234567890
+  jwtExpirationMs: 3600000
+  jwtRefreshExpirationMs: 86400000
+  
+# Configuration Twilio pour les tests (désactiver ou utiliser des mocks)
+twilio:
+  account-sid: test-account-sid
+  auth-token: test-auth-token
+  phone-number: +1234567890
+  enabled: false
+  
+# Configuration Stripe pour les tests
+stripe:
+  api-key: test-stripe-key
+  webhook-secret: test-webhook-secret
+  enabled: false
+  
+# Configuration des logs pour les tests
+logging:
+  level:
+    root: INFO
+    com.example.demo: DEBUG
+    org.springframework.data.mongodb: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.test: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    
+# Désactiver les tâches planifiées pendant les tests
+scheduling:
+  enabled: false
+  
+# Configuration des notifications pour les tests
+notifications:
+  email:
+    enabled: false
+  sms:
+    enabled: false
+  push:
+    enabled: false
+    
+# Configuration JaCoCo
+jacoco:
+  enabled: true
+  
+# Configuration des tests
+test:
+  database:
+    cleanup: true
+    seed-data: false

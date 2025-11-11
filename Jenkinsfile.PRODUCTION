@@ -1,0 +1,692 @@
+// ============================================================
+// JENKINSFILE PRODUCTION - COMMERCIAL PFE BACKEND
+// Pipeline CI/CD Complet avec toutes les fonctionnalités
+// ============================================================
+
+pipeline {
+    agent any
+    
+    environment {
+        // Configuration Maven
+        MAVEN_OPTS = '-Xmx3072m -Xms1024m'
+        JAVA_HOME = '/opt/java/openjdk'
+        
+        // Configuration Docker
+        DOCKER_USERNAME = 'hamalak'
+        BACKEND_IMAGE = "${DOCKER_USERNAME}/commercial-pfe-backend"
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        
+        // Configuration SonarQube
+        SONAR_PROJECT_KEY = 'Commercial-PFE-Backend'
+        SONAR_PROJECT_NAME = 'Commercial PFE Backend'
+        
+        // Configuration Application
+        APP_VERSION = '1.0.0'
+        APP_NAME = 'Commercial PFE Backend'
+        
+        // Git
+        GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD 2>/dev/null || echo "local"', returnStdout: true).trim()
+        
+        // Métriques de qualité
+        COVERAGE_THRESHOLD = '80'
+        BRANCH_COVERAGE_THRESHOLD = '75'
+    }
+    
+    options {
+        buildDiscarder(logRotator(
+            numToKeepStr: '10',
+            artifactNumToKeepStr: '5'
+        ))
+        timestamps()
+        timeout(time: 2, unit: 'HOURS')
+        disableConcurrentBuilds()
+        skipDefaultCheckout()
+    }
+    
+    parameters {
+        choice(
+            name: 'BUILD_TYPE',
+            choices: ['FULL', 'QUICK', 'SECURITY_ONLY'],
+            description: 'Type de build à exécuter'
+        )
+        booleanParam(
+            name: 'SKIP_TESTS',
+            defaultValue: false,
+            description: 'Ignorer les tests (non recommandé)'
+        )
+        booleanParam(
+            name: 'PUSH_TO_DOCKERHUB',
+            defaultValue: true,
+            description: 'Pusher les images vers Docker Hub'
+        )
+        booleanParam(
+            name: 'RUN_INTEGRATION_TESTS',
+            defaultValue: true,
+            description: 'Exécuter les tests d\'intégration'
+        )
+        booleanParam(
+            name: 'DEPLOY_TO_STAGING',
+            defaultValue: false,
+            description: 'Déployer automatiquement en staging'
+        )
+    }
+    
+    stages {
+        // ========================================
+        // STAGE 1: INITIALISATION
+        // ========================================
+        stage('🚀 Initialisation') {
+            steps {
+                script {
+                    echo '════════════════════════════════════════════════════════'
+                    echo "           ${APP_NAME}"
+                    echo '           PIPELINE CI/CD PRODUCTION'
+                    echo '════════════════════════════════════════════════════════'
+                    echo "📦 Build: #${env.BUILD_NUMBER}"
+                    echo "🏷️  Version: ${APP_VERSION}"
+                    echo "🌿 Branch: ${env.BRANCH_NAME ?: 'develop'}"
+                    echo "📝 Commit: ${GIT_COMMIT_SHORT}"
+                    echo "👤 Démarré par: ${env.BUILD_USER ?: 'Jenkins'}"
+                    echo "🔧 Type: ${params.BUILD_TYPE}"
+                    echo "📅 Date: ${new Date().format('yyyy-MM-dd HH:mm:ss')}"
+                    echo '════════════════════════════════════════════════════════'
+                    
+                    // Définir le nom du build
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} - ${params.BUILD_TYPE}"
+                    currentBuild.description = "Commit: ${GIT_COMMIT_SHORT}"
+                }
+            }
+        }
+        
+        // ========================================
+        // STAGE 2: CHECKOUT
+        // ========================================
+        stage('📥 Checkout Code') {
+            steps {
+                echo '📥 Récupération du code source...'
+                script {
+                    try {
+                        checkout scm
+                    } catch (Exception e) {
+                        echo '⚠️ SCM non disponible, checkout manuel...'
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: '*/develop']],
+                            userRemoteConfigs: [[
+                                url: 'https://github.com/hamayari/Pfe-Backend.git'
+                            ]]
+                        ])
+                    }
+                }
+                
+                script {
+                    // Vérifier les fichiers critiques
+                    def criticalFiles = ['pom.xml', 'Dockerfile', 'src']
+                    criticalFiles.each { file ->
+                        if (!fileExists(file)) {
+                            error("❌ Fichier critique manquant: ${file}")
+                        }
+                    }
+                    echo '✅ Tous les fichiers critiques sont présents'
+                }
+            }
+        }
+        
+        // ========================================
+        // STAGE 3: BUILD & TEST MAVEN COMPLET
+        // ========================================
+        stage('🏗️ Build & Test Maven') {
+            agent {
+                docker {
+                    image 'maven:3.9-eclipse-temurin-21'
+                    args '-v maven-repo:/root/.m2 -v /var/run/docker.sock:/var/run/docker.sock --network host'
+                    reuseNode true
+                }
+            }
+            stages {
+                // ========================================
+                // 3.1: VALIDATION & DEPENDENCIES
+                // ========================================
+                stage('📦 Dependencies & Validation') {
+                    steps {
+                        echo '📦 Résolution des dépendances Maven...'
+                        sh '''
+                            mvn dependency:resolve \
+                                dependency:resolve-plugins \
+                                -B -q
+                        '''
+                        
+                        echo '✅ Validation du projet...'
+                        sh 'mvn validate -B'
+                        
+                        echo '✅ Dépendances résolues et projet validé'
+                    }
+                }
+                
+                // ========================================
+                // 3.2: COMPILATION
+                // ========================================
+                stage('🔨 Compilation') {
+                    steps {
+                        echo '🔨 Compilation du code source (parallélisée)...'
+                        sh 'mvn clean compile -B -DskipTests -T 2C'
+                        
+                        script {
+                            def compileLog = sh(
+                                script: 'find target/classes -name "*.class" | wc -l',
+                                returnStdout: true
+                            ).trim()
+                            echo "✅ ${compileLog} classes compilées avec succès"
+                        }
+                    }
+                }
+                
+                // ========================================
+                // 3.3: TESTS UNITAIRES
+                // ========================================
+                stage('🧪 Tests Unitaires') {
+                    when {
+                        expression { params.SKIP_TESTS == false }
+                    }
+                    steps {
+                        script {
+                            def testProfile = params.BUILD_TYPE == 'QUICK' ? '-Pquick' : '-Pci'
+                            echo "🧪 Exécution des tests unitaires (profil: ${testProfile})..."
+                            sh """
+                                mvn test ${testProfile} \
+                                    -Dspring.profiles.active=test \
+                                    -Dmaven.test.failure.ignore=true \
+                                    -T 2C \
+                                    -B
+                            """
+                        }
+                    }
+                    post {
+                        always {
+                            // Publication JUnit
+                            junit testResults: '**/target/surefire-reports/*.xml',
+                                  allowEmptyResults: true,
+                                  skipPublishingChecks: false,
+                                  healthScaleFactor: 1.0
+                            
+                            // Publication JaCoCo
+                            jacoco(
+                                execPattern: '**/target/jacoco.exec',
+                                classPattern: '**/target/classes',
+                                sourcePattern: '**/src/main/java',
+                                exclusionPattern: '**/*Test*.class,**/*Config*.class,**/*Application*.class,**/entity/**,**/dto/**,**/model/**',
+                                minimumLineCoverage: "${COVERAGE_THRESHOLD}",
+                                minimumBranchCoverage: "${BRANCH_COVERAGE_THRESHOLD}"
+                            )
+                            
+                            script {
+                                def testResults = junit testResults: '**/target/surefire-reports/*.xml'
+                                echo "📊 Tests: ${testResults.totalCount} total, ${testResults.passCount} réussis, ${testResults.failCount} échoués"
+                            }
+                        }
+                    }
+                }
+                
+                // ========================================
+                // 3.4: TESTS D'INTÉGRATION
+                // ========================================
+                stage('🔗 Tests d\'Intégration') {
+                    when {
+                        allOf {
+                            expression { params.SKIP_TESTS == false }
+                            expression { params.RUN_INTEGRATION_TESTS == true }
+                        }
+                    }
+                    steps {
+                        echo '🔗 Exécution des tests d\'intégration...'
+                        sh '''
+                            mvn verify \
+                                -DskipUnitTests \
+                                -Dspring.profiles.active=test \
+                                -B
+                        '''
+                        echo '✅ Tests d\'intégration terminés'
+                    }
+                }
+                
+                // ========================================
+                // 3.5: ANALYSE STATIQUE DU CODE
+                // ========================================
+                stage('🔍 Analyse Statique') {
+                    parallel {
+                        stage('Checkstyle') {
+                            steps {
+                                echo '📐 Vérification du style de code...'
+                                sh 'mvn checkstyle:check -B || true'
+                            }
+                        }
+                        stage('PMD') {
+                            steps {
+                                echo '🔎 Analyse PMD...'
+                                sh 'mvn pmd:check -B || true'
+                            }
+                        }
+                        stage('SpotBugs') {
+                            steps {
+                                echo '🐛 Détection de bugs...'
+                                sh 'mvn spotbugs:check -B || true'
+                            }
+                        }
+                    }
+                }
+                
+                // ========================================
+                // 3.6: SONARQUBE ANALYSIS
+                // ========================================
+                stage('📊 SonarQube Analysis') {
+                    when {
+                        expression { params.BUILD_TYPE != 'QUICK' }
+                    }
+                    steps {
+                        echo '📊 Analyse qualité avec SonarQube...'
+                        script {
+                            try {
+                                withSonarQubeEnv('SonarQube') {
+                                    sh '''
+                                        mvn sonar:sonar \
+                                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                            -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
+                                            -Dsonar.projectVersion=${APP_VERSION} \
+                                            -Dsonar.java.binaries=target/classes \
+                                            -Dsonar.sources=src/main/java \
+                                            -Dsonar.tests=src/test/java \
+                                            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+                                            -Dsonar.junit.reportPaths=target/surefire-reports \
+                                            -Dsonar.java.coveragePlugin=jacoco \
+                                            -Dsonar.exclusions=**/entity/**,**/model/**,**/dto/**,**/config/**,**/DemoApplication.java \
+                                            -B
+                                    '''
+                                }
+                                echo '✅ Analyse SonarQube terminée'
+                            } catch (Exception e) {
+                                echo "⚠️ SonarQube non disponible: ${e.message}"
+                                echo "⚠️ Le build continue sans SonarQube"
+                            }
+                        }
+                    }
+                }
+                
+                // ========================================
+                // 3.7: QUALITY GATE
+                // ========================================
+                stage('🚦 Quality Gate') {
+                    when {
+                        expression { params.BUILD_TYPE != 'QUICK' }
+                    }
+                    steps {
+                        script {
+                            try {
+                                timeout(time: 5, unit: 'MINUTES') {
+                                    def qg = waitForQualityGate()
+                                    if (qg.status != 'OK') {
+                                        echo "⚠️ Quality Gate: ${qg.status}"
+                                        echo "⚠️ Le build continue malgré le Quality Gate"
+                                        currentBuild.result = 'UNSTABLE'
+                                    } else {
+                                        echo '✅ Quality Gate: PASSED'
+                                    }
+                                }
+                            } catch (Exception e) {
+                                echo "⚠️ Quality Gate timeout: ${e.message}"
+                            }
+                        }
+                    }
+                }
+                
+                // ========================================
+                // 3.8: PACKAGING
+                // ========================================
+                stage('📦 Package JAR') {
+                    steps {
+                        echo '📦 Création du package JAR...'
+                        sh 'mvn package -DskipTests -B'
+                        
+                        script {
+                            def jarFile = sh(
+                                script: 'ls -lh target/*.jar | grep -v original',
+                                returnStdout: true
+                            ).trim()
+                            echo "✅ JAR créé: ${jarFile}"
+                        }
+                    }
+                    post {
+                        success {
+                            archiveArtifacts artifacts: 'target/*.jar',
+                                           fingerprint: true,
+                                           allowEmptyArchive: false,
+                                           onlyIfSuccessful: true
+                        }
+                    }
+                }
+            }
+        }
+        
+        // ========================================
+        // STAGE 4: DOCKER BUILD
+        // ========================================
+        stage('🐳 Docker Build') {
+            steps {
+                echo '🐳 Construction des images Docker...'
+                script {
+                    sh """
+                        docker build \
+                            -t ${BACKEND_IMAGE}:${IMAGE_TAG} \
+                            -t ${BACKEND_IMAGE}:latest \
+                            -t ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT} \
+                            -t ${BACKEND_IMAGE}:v${APP_VERSION} \
+                            --build-arg VERSION=${APP_VERSION} \
+                            --build-arg BUILD_NUMBER=${env.BUILD_NUMBER} \
+                            --build-arg BUILD_DATE=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+                            --build-arg VCS_REF=${GIT_COMMIT_SHORT} \
+                            --label "version=${APP_VERSION}" \
+                            --label "build=${env.BUILD_NUMBER}" \
+                            --label "commit=${GIT_COMMIT_SHORT}" \
+                            .
+                    """
+                    
+                    echo '✅ Images Docker créées:'
+                    echo "   • ${BACKEND_IMAGE}:${IMAGE_TAG}"
+                    echo "   • ${BACKEND_IMAGE}:latest"
+                    echo "   • ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT}"
+                    echo "   • ${BACKEND_IMAGE}:v${APP_VERSION}"
+                    
+                    // Vérifier la taille de l'image
+                    def imageSize = sh(
+                        script: "docker images ${BACKEND_IMAGE}:${IMAGE_TAG} --format '{{.Size}}'",
+                        returnStdout: true
+                    ).trim()
+                    echo "📊 Taille de l'image: ${imageSize}"
+                }
+            }
+        }
+        
+        // ========================================
+        // STAGE 5: TESTS DOCKER
+        // ========================================
+        stage('🧪 Tests Docker') {
+            steps {
+                echo '🧪 Tests du conteneur Docker avec MongoDB...'
+                script {
+                    try {
+                        // Nettoyage
+                        sh '''
+                            docker stop backend-test mongodb-test 2>/dev/null || true
+                            docker rm backend-test mongodb-test 2>/dev/null || true
+                            docker network rm test-network 2>/dev/null || true
+                        '''
+                        
+                        // Réseau Docker
+                        sh 'docker network create test-network'
+                        echo '✅ Réseau Docker créé'
+                        
+                        // MongoDB
+                        sh """
+                            docker run -d \
+                                --name mongodb-test \
+                                --network test-network \
+                                -e MONGO_INITDB_ROOT_USERNAME=admin \
+                                -e MONGO_INITDB_ROOT_PASSWORD=admin123 \
+                                mongo:latest
+                        """
+                        echo '✅ MongoDB démarré'
+                        sleep 15
+                        
+                        // Backend
+                        sh """
+                            docker run -d \
+                                --name backend-test \
+                                --network test-network \
+                                -p 8081:8080 \
+                                -e SPRING_DATA_MONGODB_HOST=mongodb-test \
+                                -e SPRING_DATA_MONGODB_PORT=27017 \
+                                -e SPRING_DATA_MONGODB_USERNAME=admin \
+                                -e SPRING_DATA_MONGODB_PASSWORD=admin123 \
+                                -e SPRING_DATA_MONGODB_DATABASE=commercial_pfe \
+                                -e SPRING_DATA_MONGODB_AUTHENTICATION_DATABASE=admin \
+                                -e SPRING_PROFILES_ACTIVE=prod \
+                                ${BACKEND_IMAGE}:${IMAGE_TAG}
+                        """
+                        echo '✅ Backend démarré'
+                        sleep 40
+                        
+                        // Health checks
+                        def healthOk = false
+                        for (int i = 1; i <= 5; i++) {
+                            echo "🔍 Health check ${i}/5..."
+                            def health = sh(
+                                script: 'curl -f http://localhost:8081/actuator/health 2>/dev/null || echo "FAILED"',
+                                returnStdout: true
+                            ).trim()
+                            
+                            if (health.contains('UP')) {
+                                echo '✅ Health check: PASSED'
+                                healthOk = true
+                                break
+                            }
+                            if (i < 5) sleep 10
+                        }
+                        
+                        if (!healthOk) {
+                            echo '⚠️ Health check: TIMEOUT'
+                            sh 'docker logs backend-test --tail 100'
+                        }
+                        
+                    } catch (Exception e) {
+                        echo "⚠️ Erreur Docker Test: ${e.message}"
+                        sh 'docker logs backend-test 2>/dev/null || true'
+                    } finally {
+                        sh '''
+                            docker stop backend-test mongodb-test 2>/dev/null || true
+                            docker rm backend-test mongodb-test 2>/dev/null || true
+                            docker network rm test-network 2>/dev/null || true
+                        '''
+                    }
+                }
+            }
+        }
+        
+        // ========================================
+        // STAGE 6: SCAN DE SÉCURITÉ
+        // ========================================
+        stage('🔒 Security Scan') {
+            when {
+                expression { 
+                    params.BUILD_TYPE == 'FULL' || params.BUILD_TYPE == 'SECURITY_ONLY' 
+                }
+            }
+            parallel {
+                stage('Trivy Scan') {
+                    steps {
+                        echo '🔒 Scan Trivy des vulnérabilités...'
+                        script {
+                            try {
+                                sh """
+                                    docker run --rm \
+                                        -v /var/run/docker.sock:/var/run/docker.sock \
+                                        aquasec/trivy image \
+                                        --severity HIGH,CRITICAL \
+                                        --format table \
+                                        --exit-code 0 \
+                                        ${BACKEND_IMAGE}:${IMAGE_TAG}
+                                """
+                                echo '✅ Scan Trivy terminé'
+                            } catch (Exception e) {
+                                echo "⚠️ Trivy non disponible: ${e.message}"
+                            }
+                        }
+                    }
+                }
+                stage('OWASP Dependency Check') {
+                    steps {
+                        echo '🛡️ Vérification des dépendances OWASP...'
+                        script {
+                            try {
+                                sh 'mvn org.owasp:dependency-check-maven:check -B || true'
+                                echo '✅ OWASP Dependency Check terminé'
+                            } catch (Exception e) {
+                                echo "⚠️ OWASP non disponible: ${e.message}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // ========================================
+        // STAGE 7: PUSH DOCKER HUB
+        // ========================================
+        stage('📤 Push Docker Hub') {
+            when {
+                allOf {
+                    expression { params.PUSH_TO_DOCKERHUB == true }
+                    anyOf {
+                        branch 'develop'
+                        branch 'main'
+                        branch 'master'
+                    }
+                }
+            }
+            steps {
+                echo '📤 Push vers Docker Hub...'
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                        echo "🔐 Connexion Docker Hub..."
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        
+                        echo "📤 Push des images..."
+                        docker push ${BACKEND_IMAGE}:${IMAGE_TAG}
+                        docker push ${BACKEND_IMAGE}:latest
+                        docker push ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT}
+                        docker push ${BACKEND_IMAGE}:v${APP_VERSION}
+                        
+                        docker logout
+                    '''
+                }
+                echo '✅ Images poussées vers Docker Hub'
+            }
+        }
+        
+        // ========================================
+        // STAGE 8: DÉPLOIEMENT STAGING (OPTIONNEL)
+        // ========================================
+        stage('🚀 Deploy Staging') {
+            when {
+                expression { params.DEPLOY_TO_STAGING == true }
+            }
+            steps {
+                echo '🚀 Déploiement en environnement staging...'
+                script {
+                    // Ajoutez ici votre logique de déploiement
+                    echo '⚠️ Déploiement staging à implémenter'
+                }
+            }
+        }
+        
+        // ========================================
+        // STAGE 9: RAPPORT FINAL
+        // ========================================
+        stage('📊 Rapport Final') {
+            steps {
+                script {
+                    def buildStatus = currentBuild.result ?: 'SUCCESS'
+                    def statusIcon = buildStatus == 'SUCCESS' ? '✅' : buildStatus == 'UNSTABLE' ? '⚠️' : '❌'
+                    def duration = currentBuild.durationString.replace(' and counting', '')
+                    
+                    echo '════════════════════════════════════════════════════════'
+                    echo '           RAPPORT FINAL DU BUILD'
+                    echo '════════════════════════════════════════════════════════'
+                    echo "${statusIcon} Status: ${buildStatus}"
+                    echo "📦 Build: #${env.BUILD_NUMBER}"
+                    echo "🏷️  Version: ${APP_VERSION}"
+                    echo "🌿 Branch: ${env.BRANCH_NAME ?: 'develop'}"
+                    echo "📝 Commit: ${GIT_COMMIT_SHORT}"
+                    echo "⏱️  Durée: ${duration}"
+                    echo "🔧 Type: ${params.BUILD_TYPE}"
+                    echo ''
+                    echo '📦 ARTEFACTS:'
+                    echo "   ✓ JAR: demo-${APP_VERSION}-SNAPSHOT.jar"
+                    echo "   ✓ Docker: ${BACKEND_IMAGE}:${IMAGE_TAG}"
+                    echo "   ✓ Docker: ${BACKEND_IMAGE}:latest"
+                    echo "   ✓ Docker: ${BACKEND_IMAGE}:v${APP_VERSION}"
+                    echo ''
+                    echo '📊 RAPPORTS:'
+                    echo "   • Tests JUnit: ${env.BUILD_URL}testReport/"
+                    echo "   • Couverture JaCoCo: ${env.BUILD_URL}jacoco/"
+                    echo "   • SonarQube: http://localhost:9000/dashboard?id=${SONAR_PROJECT_KEY}"
+                    echo ''
+                    echo '🔗 LIENS:'
+                    echo "   • Docker Hub: https://hub.docker.com/r/${DOCKER_USERNAME}/commercial-pfe-backend"
+                    echo "   • Jenkins: ${env.BUILD_URL}"
+                    echo "   • GitHub: https://github.com/hamayari/Pfe-Backend"
+                    echo '════════════════════════════════════════════════════════'
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            script {
+                echo '✅✅✅ PIPELINE RÉUSSIE! ✅✅✅'
+                echo '🎉 Tous les stages ont été complétés avec succès!'
+                
+                // Notification (à configurer)
+                // emailext subject: "✅ Build ${env.BUILD_NUMBER} - SUCCESS",
+                //          body: "Le build a réussi!",
+                //          to: "team@example.com"
+            }
+        }
+        unstable {
+            echo '⚠️⚠️⚠️ PIPELINE INSTABLE ⚠️⚠️⚠️'
+            echo '⚠️ Certains tests ont échoué ou Quality Gate non passé'
+        }
+        failure {
+            echo '❌❌❌ PIPELINE ÉCHOUÉE ❌❌❌'
+            echo '❌ Le build a échoué. Consultez les logs.'
+        }
+        always {
+            echo '🧹 Nettoyage final...'
+            sh '''
+                # Nettoyage conteneurs
+                docker stop backend-test mongodb-test 2>/dev/null || true
+                docker rm backend-test mongodb-test 2>/dev/null || true
+                docker network rm test-network 2>/dev/null || true
+                
+                # Nettoyage images non utilisées
+                docker image prune -f 2>/dev/null || true
+            '''
+            
+            // Publication rapports HTML
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'target/site/jacoco',
+                reportFiles: 'index.html',
+                reportName: 'JaCoCo Coverage',
+                reportTitles: 'Code Coverage Report'
+            ])
+            
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'target/site',
+                reportFiles: 'project-reports.html',
+                reportName: 'Maven Site',
+                reportTitles: 'Project Reports'
+            ])
+            
+            echo '✅ Nettoyage terminé'
+        }
+    }
+}

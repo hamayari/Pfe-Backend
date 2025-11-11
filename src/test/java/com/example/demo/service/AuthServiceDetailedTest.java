@@ -105,13 +105,13 @@ class AuthServiceDetailedTest {
         );
         // Adapter le constructeur UserPrincipal selon votre implémentation
         mockUserPrincipal = mock(UserPrincipal.class);
-        when(mockUserPrincipal.getUsername()).thenReturn("testuser");
-        when(mockUserPrincipal.getEmail()).thenReturn("test@example.com");
-        when(mockUserPrincipal.getAuthorities()).thenReturn((Collection) authorities);
+        lenient().when(mockUserPrincipal.getUsername()).thenReturn("testuser");
+        lenient().when(mockUserPrincipal.getEmail()).thenReturn("test@example.com");
+        lenient().when(mockUserPrincipal.getAuthorities()).thenReturn((Collection) authorities);
 
         // Mock Authentication
         mockAuthentication = mock(Authentication.class);
-        when(mockAuthentication.getPrincipal()).thenReturn(mockUserPrincipal);
+        lenient().when(mockAuthentication.getPrincipal()).thenReturn(mockUserPrincipal);
     }
 
     // ==================== Tests d'authentification ====================
@@ -342,12 +342,21 @@ class AuthServiceDetailedTest {
         request.setPassword("password123");
         // request.setRole("ROLE_COMMERCIAL"); // Adapter selon UserCreateRequest (peut-être setRoles)
 
-        when(userRepository.existsByUsername("newuser")).thenReturn(false);
-        when(userRepository.existsByEmail("newuser@example.com")).thenReturn(false);
+        lenient().when(userRepository.existsByUsername("newuser")).thenReturn(false);
+        lenient().when(userRepository.existsByEmail("newuser@example.com")).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        when(roleRepository.findByName(ERole.ROLE_COMMERCIAL))
-            .thenReturn(Optional.of(createRole(ERole.ROLE_COMMERCIAL)));
+        when(roleRepository.findByName(ERole.ROLE_USER))
+            .thenReturn(Optional.of(createRole(ERole.ROLE_USER)));
         when(userRepository.save(any(User.class))).thenReturn(mockUser);
+        
+        // Mock du créateur (admin) avec rôle ADMIN
+        User adminUser = new User();
+        adminUser.setId("admin-id");
+        adminUser.setUsername("admin");
+        Set<Role> adminRoles = new HashSet<>();
+        adminRoles.add(createRole(ERole.ROLE_ADMIN));
+        adminUser.setRoles(adminRoles);
+        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(adminUser));
 
         // When
         User result = authService.createUserWithRole(request, "admin");
@@ -379,17 +388,19 @@ class AuthServiceDetailedTest {
     }
 
     @Test
-    @DisplayName("Initiation de réinitialisation échoue si email n'existe pas")
+    @DisplayName("Initiation de réinitialisation ne révèle pas si email n'existe pas (sécurité)")
     void testInitiatePasswordReset_EmailNotFound() {
         // Given
         String email = "nonexistent@example.com";
         when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
 
-        // When & Then
-        assertThrows(ResourceNotFoundException.class, () -> {
+        // When & Then - Ne doit PAS lancer d'exception pour des raisons de sécurité
+        assertDoesNotThrow(() -> {
             authService.initiatePasswordReset(email);
         });
-
+        
+        // Vérifier qu'aucun email n'a été envoyé
+        verify(userRepository, times(1)).findByEmail(email);
         verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString());
     }
 

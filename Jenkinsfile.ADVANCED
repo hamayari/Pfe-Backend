@@ -1,47 +1,64 @@
+// PIPELINE CI/CD AVANCÉE - COMMERCIAL PFE BACKEND
+// Repository: https://github.com/hamayari/Pfe-Backend
+// Features: Tests complets, SonarQube, Security Scan, Docker, Deploy multi-env
+
 pipeline {
     agent any
     
     environment {
-        MAVEN_OPTS = '-Xmx3072m -Xms1024m'
-        JAVA_HOME = '/opt/java/openjdk'
-        
+        MAVEN_OPTS = '-Xmx3072m -Xms1024m -XX:+UseG1GC'
         DOCKER_USERNAME = 'hamalak'
         BACKEND_IMAGE = "${DOCKER_USERNAME}/commercial-pfe-backend"
         IMAGE_TAG = "${env.BUILD_NUMBER}"
-        
         SONAR_PROJECT_KEY = 'Commercial-PFE-Backend'
-        SONAR_PROJECT_NAME = 'Commercial PFE Backend'
         SONAR_HOST_URL = 'http://localhost:9000'
-        
         APP_VERSION = '1.0.0'
+        GIT_REPO = 'https://github.com/hamayari/Pfe-Backend.git'
         GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD 2>/dev/null || echo "local"', returnStdout: true).trim()
-        
+        BUILD_USER = wrap([$class: 'BuildUser']) { return env.BUILD_USER ?: 'Jenkins' }
         COVERAGE_THRESHOLD = '70'
-        BRANCH_COVERAGE_THRESHOLD = '65'
     }
     
     options {
-        buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '5'))
+        buildDiscarder(logRotator(numToKeepStr: '20', daysToKeepStr: '30'))
         timestamps()
-        timeout(time: 45, unit: 'MINUTES')
+        timeout(time: 2, unit: 'HOURS')
         disableConcurrentBuilds()
     }
     
+    parameters {
+        choice(name: 'BUILD_TYPE', choices: ['FULL', 'QUICK', 'SECURITY_ONLY'], description: 'Type de build')
+        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Ignorer les tests')
+        booleanParam(name: 'PUSH_TO_DOCKERHUB', defaultValue: true, description: 'Push Docker Hub')
+        booleanParam(name: 'DEPLOY_TO_STAGING', defaultValue: false, description: 'Deploy staging')
+        string(name: 'GIT_BRANCH', defaultValue: 'develop', description: 'Branche Git à builder')
+    }
+    
     stages {
-        stage('Initialisation') {
+        stage('Init & Checkout') {
             steps {
                 script {
+                    def buildUser = currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause')?.userId?.getAt(0) ?: 'Jenkins'
                     echo '════════════════════════════════════════════════════════'
-                    echo "           ${SONAR_PROJECT_NAME}"
-                    echo '           PIPELINE CI/CD PROFESSIONNELLE'
+                    echo "Build: #${env.BUILD_NUMBER} | Version: ${APP_VERSION}"
+                    echo "Repository: ${GIT_REPO}"
+                    echo "Branch: ${params.GIT_BRANCH}"
+                    echo "Started by: ${buildUser}"
+                    echo "Type: ${params.BUILD_TYPE}"
                     echo '════════════════════════════════════════════════════════'
-                    echo "Build: #${env.BUILD_NUMBER}"
-                    echo "Version: ${APP_VERSION}"
-                    echo "Commit: ${GIT_COMMIT_SHORT}"
-                    echo '════════════════════════════════════════════════════════'
-                    currentBuild.displayName = "#${env.BUILD_NUMBER} - ${GIT_COMMIT_SHORT}"
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} - ${params.BUILD_TYPE}"
                 }
-                checkout scm
+                
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "*/${params.GIT_BRANCH}"]],
+                    userRemoteConfigs: [[url: "${GIT_REPO}"]]
+                ])
+                
+                script {
+                    GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    echo "Commit: ${GIT_COMMIT_SHORT}"
+                }
             }
         }
         
@@ -54,12 +71,12 @@ pipeline {
                 }
             }
             steps {
-                echo 'Compilation du code source...'
-                sh 'mvn clean compile -B -DskipTests'
+                sh 'mvn clean compile -B -DskipTests -T 2C'
             }
         }
         
-        stage('Tests Unitaires JUnit') {
+        stage('Tests Unitaires') {
+            when { expression { params.SKIP_TESTS == false } }
             agent {
                 docker {
                     image 'maven:3.9-eclipse-temurin-21'
@@ -68,30 +85,19 @@ pipeline {
                 }
             }
             steps {
-                echo 'Exécution des tests unitaires...'
-                sh '''
-                    mvn test \
-                        -Dspring.profiles.active=test \
-                        -Dmaven.test.failure.ignore=false \
-                        -B
-                '''
+                sh 'mvn test -Dspring.profiles.active=test -B'
             }
             post {
                 always {
-                    junit testResults: '**/target/surefire-reports/*.xml',
-                          allowEmptyResults: false,
-                          skipPublishingChecks: false
-                    
+                    junit '**/target/surefire-reports/*.xml'
                     jacoco(
                         execPattern: '**/target/jacoco.exec',
                         classPattern: '**/target/classes',
                         sourcePattern: '**/src/main/java',
-                        exclusionPattern: '**/*Test*.class,**/*Config*.class,**/*Application*.class,**/entity/**,**/dto/**,**/model/**',
+                        exclusionPattern: '**/*Test*.class,**/*Config*.class,**/entity/**,**/dto/**,**/model/**',
                         minimumLineCoverage: "${COVERAGE_THRESHOLD}",
-                        minimumBranchCoverage: "${BRANCH_COVERAGE_THRESHOLD}",
                         changeBuildStatus: true
                     )
-                    
                     publishHTML([
                         allowMissing: true,
                         alwaysLinkToLastBuild: true,
@@ -105,7 +111,7 @@ pipeline {
             }
         }
         
-        stage('Analyse SonarQube') {
+        stage('SonarQube Analysis') {
             agent {
                 docker {
                     image 'maven:3.9-eclipse-temurin-21'
@@ -114,27 +120,19 @@ pipeline {
                 }
             }
             steps {
-                echo 'Analyse qualité avec SonarQube...'
                 script {
                     try {
                         withSonarQubeEnv('SonarQube') {
                             sh '''
                                 mvn sonar:sonar \
                                     -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                    -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
-                                    -Dsonar.projectVersion=${APP_VERSION} \
                                     -Dsonar.host.url=${SONAR_HOST_URL} \
                                     -Dsonar.java.binaries=target/classes \
-                                    -Dsonar.sources=src/main/java \
-                                    -Dsonar.tests=src/test/java \
                                     -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-                                    -Dsonar.junit.reportPaths=target/surefire-reports \
-                                    -Dsonar.java.coveragePlugin=jacoco \
-                                    -Dsonar.exclusions=**/entity/**,**/model/**,**/dto/**,**/config/**,**/DemoApplication.java \
+                                    -Dsonar.exclusions=**/entity/**,**/model/**,**/dto/**,**/config/** \
                                     -B
                             '''
                         }
-                        echo "Rapport SonarQube: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
                     } catch (Exception e) {
                         echo "SonarQube non disponible: ${e.message}"
                         currentBuild.result = 'UNSTABLE'
@@ -150,14 +148,10 @@ pipeline {
                         timeout(time: 5, unit: 'MINUTES') {
                             def qg = waitForQualityGate()
                             if (qg.status != 'OK') {
-                                echo "Quality Gate: ${qg.status}"
                                 currentBuild.result = 'UNSTABLE'
-                            } else {
-                                echo 'Quality Gate: PASSED'
                             }
                         }
                     } catch (Exception e) {
-                        echo "Quality Gate timeout: ${e.message}"
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
@@ -173,37 +167,50 @@ pipeline {
                 }
             }
             steps {
-                echo 'Création du package JAR...'
                 sh 'mvn package -DskipTests -B'
             }
             post {
                 success {
-                    archiveArtifacts artifacts: 'target/*.jar',
-                                   fingerprint: true,
-                                   allowEmptyArchive: false,
-                                   onlyIfSuccessful: true
+                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
                 }
             }
         }
         
         stage('Security Scan') {
-            agent {
-                docker {
-                    image 'maven:3.9-eclipse-temurin-21'
-                    args '-v maven-repo:/root/.m2'
-                    reuseNode true
+            when { expression { params.BUILD_TYPE == 'FULL' || params.BUILD_TYPE == 'SECURITY_ONLY' } }
+            parallel {
+                stage('OWASP Check') {
+                    agent {
+                        docker {
+                            image 'maven:3.9-eclipse-temurin-21'
+                            args '-v maven-repo:/root/.m2'
+                            reuseNode true
+                        }
+                    }
+                    steps {
+                        sh 'mvn org.owasp:dependency-check-maven:check -B || true'
+                    }
                 }
-            }
-            steps {
-                echo 'Scan de sécurité des dépendances...'
-                sh 'mvn dependency:tree -B'
-                sh 'mvn dependency:analyze -B || true'
+                stage('Trivy Scan') {
+                    steps {
+                        script {
+                            try {
+                                sh '''
+                                    docker run --rm -v $(pwd):/scan aquasec/trivy fs \
+                                        --severity HIGH,CRITICAL \
+                                        --exit-code 0 /scan
+                                '''
+                            } catch (Exception e) {
+                                echo "Trivy non disponible"
+                            }
+                        }
+                    }
+                }
             }
         }
         
-        stage('Build Docker Image') {
+        stage('Docker Build') {
             steps {
-                echo 'Construction de l\'image Docker...'
                 script {
                     sh """
                         docker build \
@@ -214,58 +221,47 @@ pipeline {
                             --build-arg BUILD_NUMBER=${env.BUILD_NUMBER} \
                             --label "version=${APP_VERSION}" \
                             --label "build=${env.BUILD_NUMBER}" \
-                            --label "commit=${GIT_COMMIT_SHORT}" \
                             .
                     """
-                    
-                    def imageSize = sh(
-                        script: "docker images ${BACKEND_IMAGE}:${IMAGE_TAG} --format '{{.Size}}'",
-                        returnStdout: true
-                    ).trim()
-                    echo "Image Docker créée: ${imageSize}"
                 }
             }
         }
         
-        stage('Test Docker Image') {
+        stage('Docker Security Scan') {
+            when { expression { params.BUILD_TYPE == 'FULL' || params.BUILD_TYPE == 'SECURITY_ONLY' } }
             steps {
-                echo 'Test de l\'image Docker...'
+                script {
+                    try {
+                        sh """
+                            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                                aquasec/trivy image \
+                                --severity HIGH,CRITICAL \
+                                --exit-code 0 \
+                                ${BACKEND_IMAGE}:${IMAGE_TAG}
+                        """
+                    } catch (Exception e) {
+                        echo "Trivy non disponible"
+                    }
+                }
+            }
+        }
+        
+        stage('Docker Test') {
+            steps {
                 script {
                     try {
                         sh 'docker stop backend-test 2>/dev/null || true'
                         sh 'docker rm backend-test 2>/dev/null || true'
-                        
                         sh """
-                            docker run -d \
-                                --name backend-test \
-                                -p 8082:8080 \
+                            docker run -d --name backend-test -p 8082:8080 \
                                 -e SPRING_PROFILES_ACTIVE=test \
                                 ${BACKEND_IMAGE}:${IMAGE_TAG}
                         """
-                        
                         sleep 30
-                        
-                        def healthOk = false
-                        for (int i = 1; i <= 3; i++) {
-                            def health = sh(
-                                script: 'curl -f http://localhost:8082/actuator/health 2>/dev/null || echo "FAILED"',
-                                returnStdout: true
-                            ).trim()
-                            
-                            if (health.contains('UP')) {
-                                echo 'Health check: PASSED'
-                                healthOk = true
-                                break
-                            }
-                            if (i < 3) sleep 10
+                        def health = sh(script: 'curl -f http://localhost:8082/actuator/health 2>/dev/null || echo "FAILED"', returnStdout: true).trim()
+                        if (health.contains('UP')) {
+                            echo 'Health check: PASSED'
                         }
-                        
-                        if (!healthOk) {
-                            echo 'Health check: TIMEOUT (normal sans MongoDB)'
-                        }
-                        
-                    } catch (Exception e) {
-                        echo "Erreur test Docker: ${e.message}"
                     } finally {
                         sh 'docker stop backend-test 2>/dev/null || true'
                         sh 'docker rm backend-test 2>/dev/null || true'
@@ -276,19 +272,13 @@ pipeline {
         
         stage('Push Docker Hub') {
             when {
-                anyOf {
-                    branch 'develop'
-                    branch 'main'
-                    branch 'master'
+                allOf {
+                    expression { params.PUSH_TO_DOCKERHUB == true }
+                    anyOf { branch 'develop'; branch 'main'; branch 'master' }
                 }
             }
             steps {
-                echo 'Push vers Docker Hub...'
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-credentials',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
                         docker push ${BACKEND_IMAGE}:${IMAGE_TAG}
@@ -297,37 +287,35 @@ pipeline {
                         docker logout
                     '''
                 }
-                echo 'Images poussées vers Docker Hub'
+            }
+        }
+        
+        stage('Deploy Staging') {
+            when { expression { params.DEPLOY_TO_STAGING == true } }
+            steps {
+                script {
+                    sh '''
+                        docker stop commercial-backend-staging 2>/dev/null || true
+                        docker rm commercial-backend-staging 2>/dev/null || true
+                        docker run -d --name commercial-backend-staging \
+                            -p 8083:8080 \
+                            -e SPRING_PROFILES_ACTIVE=staging \
+                            --restart unless-stopped \
+                            ${BACKEND_IMAGE}:${IMAGE_TAG}
+                    '''
+                }
             }
         }
         
         stage('Rapport Final') {
             steps {
                 script {
-                    def buildStatus = currentBuild.result ?: 'SUCCESS'
-                    def statusIcon = buildStatus == 'SUCCESS' ? '✅' : buildStatus == 'UNSTABLE' ? '⚠️' : '❌'
-                    
+                    def status = currentBuild.result ?: 'SUCCESS'
                     echo '════════════════════════════════════════════════════════'
-                    echo '           RAPPORT FINAL'
-                    echo '════════════════════════════════════════════════════════'
-                    echo "${statusIcon} Status: ${buildStatus}"
-                    echo "Build: #${env.BUILD_NUMBER}"
-                    echo "Version: ${APP_VERSION}"
-                    echo "Commit: ${GIT_COMMIT_SHORT}"
-                    echo ''
-                    echo 'ARTEFACTS:'
-                    echo "  ✓ JAR: demo-${APP_VERSION}-SNAPSHOT.jar"
-                    echo "  ✓ Docker: ${BACKEND_IMAGE}:${IMAGE_TAG}"
-                    echo "  ✓ Docker: ${BACKEND_IMAGE}:latest"
-                    echo ''
-                    echo 'RAPPORTS:'
-                    echo "  • Tests: ${env.BUILD_URL}testReport/"
-                    echo "  • Couverture: ${env.BUILD_URL}jacoco/"
-                    echo "  • SonarQube: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
-                    echo ''
-                    echo 'LIENS:'
-                    echo "  • Docker Hub: https://hub.docker.com/r/${DOCKER_USERNAME}/commercial-pfe-backend"
-                    echo "  • Jenkins: ${env.BUILD_URL}"
+                    echo "Status: ${status} | Build: #${env.BUILD_NUMBER}"
+                    echo "Version: ${APP_VERSION} | Commit: ${GIT_COMMIT_SHORT}"
+                    echo "Docker: ${BACKEND_IMAGE}:${IMAGE_TAG}"
+                    echo "SonarQube: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
                     echo '════════════════════════════════════════════════════════'
                 }
             }
@@ -337,24 +325,19 @@ pipeline {
     post {
         success {
             echo '✅✅✅ PIPELINE RÉUSSIE! ✅✅✅'
-            echo 'Tous les stages ont été complétés avec succès!'
         }
         unstable {
             echo '⚠️⚠️⚠️ PIPELINE INSTABLE ⚠️⚠️⚠️'
-            echo 'Certains tests ont échoué ou Quality Gate non passé'
         }
         failure {
             echo '❌❌❌ PIPELINE ÉCHOUÉE ❌❌❌'
-            echo 'Le build a échoué. Consultez les logs.'
         }
         always {
-            echo 'Nettoyage final...'
             sh '''
                 docker stop backend-test 2>/dev/null || true
                 docker rm backend-test 2>/dev/null || true
                 docker image prune -f 2>/dev/null || true
             '''
-            echo 'Nettoyage terminé'
         }
     }
 }

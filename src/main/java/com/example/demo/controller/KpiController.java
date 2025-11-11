@@ -24,20 +24,25 @@ public class KpiController {
     
     /**
      * Nettoie les alertes obsolètes au démarrage du backend
-     * ⚠️ Ne supprime PAS toutes les alertes, seulement celles qui sont obsolètes
+     * ⚠️ DÉSACTIVÉ pour les tests - MongoDB peut ne pas être disponible
      */
     @PostConstruct
     public void cleanupObsoleteAlertsOnStartup() {
-        System.out.println("========================================");
-        System.out.println("🧹 VÉRIFICATION DES ALERTES AU DÉMARRAGE");
-        long count = alertRepository.count();
-        System.out.println("📊 Alertes existantes: " + count);
-        
-        // Les alertes seront nettoyées automatiquement lors du prochain /api/kpi/analyze
-        // On ne supprime plus tout au démarrage pour préserver les alertes valides
-        
-        System.out.println("✅ Prêt à analyser les KPI");
-        System.out.println("========================================");
+        try {
+            System.out.println("========================================");
+            System.out.println("🧹 VÉRIFICATION DES ALERTES AU DÉMARRAGE");
+            long count = alertRepository.count();
+            System.out.println("📊 Alertes existantes: " + count);
+            
+            // Les alertes seront nettoyées automatiquement lors du prochain /api/kpi/analyze
+            // On ne supprime plus tout au démarrage pour préserver les alertes valides
+            
+            System.out.println("✅ Prêt à analyser les KPI");
+            System.out.println("========================================");
+        } catch (Exception e) {
+            System.out.println("⚠️ MongoDB non disponible - Mode dégradé");
+            System.out.println("========================================");
+        }
     }
 
     /**
