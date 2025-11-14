@@ -38,15 +38,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.hamcrest.Matchers.*;
 
 /**
- * Tests unitaires pour AuthController
- * Utilise MockMvc pour tester les endpoints REST sans démarrer le serveur
+ * Tests d'intégration pour AuthController
+ * Utilise MockMvc + MongoDB embarqué (Flapdoodle)
+ * Teste les endpoints REST avec le contexte Spring complet mais isolé
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import(TestConfig.class)
 @ExtendWith(MockitoExtension.class)
-@org.junit.jupiter.api.Disabled("ApplicationContext fails to load - configuration issue")
 class AuthControllerTest {
 
     @Autowired

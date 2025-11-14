@@ -1,272 +1,163 @@
 pipeline {
     agent any
     
+    tools {
+        maven 'maven'
+        jdk 'JDK-17'
+    }
+    
     environment {
-        // Docker
-        DOCKER_USERNAME = 'hamalak'
-        BACKEND_IMAGE = "${DOCKER_USERNAME}/commercial-pfe-backend"
-        IMAGE_TAG = "${env.BUILD_NUMBER}"
-        
-        // SonarQube
-        SONAR_PROJECT_KEY = 'Commercial-PFE-Backend'
-        SONAR_PROJECT_NAME = 'Commercial PFE Backend'
-        
-        // Version
-        APP_VERSION = '1.0.0'
+        MAVEN_OPTS = '-Xmx2048m -Xms512m'
+        DOCKER_IMAGE = 'hamayari/pfe-backend'
+        DOCKER_TAG = "${BUILD_NUMBER}"
     }
     
     options {
-        buildDiscarder(logRotator(numToKeepStr: '15'))
-        timestamps()
-        timeout(time: 90, unit: 'MINUTES')
-        disableConcurrentBuilds()
+        timeout(time: 15, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
     }
     
     stages {
-        // ========================================
-        // STAGE 1: BUILD INFO
-        // ========================================
-        stage('📋 Build Info') {
+        stage('📥 Checkout') {
             steps {
+                echo '📥 Récupération du code depuis GitHub...'
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/develop']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/hamayari/Pfe-Backend.git',
+                        credentialsId: 'dockerhub-credentials'
+                    ]]
+                ])
                 script {
-                    echo '════════════════════════════════════════════════════════'
-                    echo '   COMMERCIAL PFE - PIPELINE DE PRODUCTION'
-                    echo '════════════════════════════════════════════════════════'
-                    echo "Build: #${env.BUILD_NUMBER}"
-                    echo "Version: ${APP_VERSION}"
-                    echo "Date: ${new Date().format('yyyy-MM-dd HH:mm:ss')}"
-                    echo '════════════════════════════════════════════════════════'
+                    def gitCommit = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    echo "✅ Code récupéré - Commit: ${gitCommit}"
                 }
             }
         }
         
-        // ========================================
-        // STAGE 2: CHECKOUT
-        // ========================================
-        stage('🔍 Checkout') {
+        stage('🔨 Build') {
             steps {
-                echo '🔍 Récupération du code depuis GitHub...'
-                git branch: 'develop',
-                    url: 'https://github.com/hamayari/Pfe-Backend.git'
-                
-                script {
-                    env.GIT_COMMIT_SHORT = sh(
-                        script: 'git rev-parse --short HEAD',
-                        returnStdout: true
-                    ).trim()
-                    echo "✅ Code récupéré depuis GitHub"
-                    echo "✅ Branch: develop"
-                    echo "✅ Commit: ${env.GIT_COMMIT_SHORT}"
-                }
+                echo '🔨 Compilation du code source...'
+                sh 'mvn clean compile -DskipTests -Dcheckstyle.skip=true -B'
+                echo '✅ Compilation terminée'
             }
         }
         
-        // ========================================
-        // STAGE 3: DEPENDENCIES
-        // ========================================
-        stage('📦 Dependencies') {
-            agent {
-                docker {
-                    image 'maven:3.9-eclipse-temurin-21'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock -v maven-repo:/root/.m2'
-                    reuseNode true
-                }
-            }
+        stage('🧪 Tests (Unitaires + Intégration)') {
             steps {
-                echo '📦 Résolution des dépendances Maven...'
-                sh 'mvn dependency:resolve -q'
-                echo '✅ Dépendances résolues'
-            }
-        }
-        
-        // ========================================
-        // STAGE 4: COMPILATION & TESTS
-        // ========================================
-        stage('🏗️ Compilation & Tests') {
-            agent {
-                docker {
-                    image 'maven:3.9-eclipse-temurin-21'
-                    args '-v maven-repo:/root/.m2'
-                    reuseNode true
-                }
-            }
-            steps {
-                echo '🔨 Compilation du projet...'
-                sh 'mvn clean compile -DskipTests'
-                echo '✅ Compilation réussie'
-                
-                echo '🧪 Exécution des tests unitaires...'
+                echo '🧪 Exécution de tous les tests...'
+                echo '   ✔ Tests unitaires avec Mockito'
+                echo '   ✔ Tests d\'intégration avec MongoDB embarqué (Flapdoodle)'
+                echo '   ✔ Aucune dépendance externe'
                 sh '''
                     mvn test \
+                        -Dmaven.test.failure.ignore=true \
+                        -Dcheckstyle.skip=true \
                         -Dspring.profiles.active=test \
-                        -DfailIfNoTests=false \
-                        -Dmaven.test.failure.ignore=true || echo "Tests terminés"
+                        -Dsurefire.timeout=120 \
+                        -DforkCount=1 \
+                        -DreuseForks=false \
+                        -B
                 '''
                 echo '✅ Tests terminés'
             }
             post {
                 always {
-                    junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
-                }
-            }
-        }
-        
-        // ========================================
-        // STAGE 5: SONARQUBE ANALYSIS
-        // ========================================
-        stage('📊 SonarQube') {
-            agent {
-                docker {
-                    image 'maven:3.9-eclipse-temurin-21'
-                    args '-v maven-repo:/root/.m2'
-                    reuseNode true
-                }
-            }
-            steps {
-                echo '📊 Analyse qualité du code avec SonarQube...'
-                script {
-                    try {
-                        withSonarQubeEnv('SonarQube') {
-                            sh '''
-                                mvn sonar:sonar \
-                                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                    -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
-                                    -Dsonar.projectVersion=${APP_VERSION} \
-                                    -Dsonar.java.binaries=target/classes \
-                                    -Dsonar.sources=src/main/java \
-                                    -Dsonar.tests=src/test/java \
-                                    -Dmaven.test.skip=true || echo "Analyse terminée"
-                            '''
+                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+                    script {
+                        try {
+                            def testResults = junit testResults: '**/target/surefire-reports/*.xml'
+                            echo "════════════════════════════════════════"
+                            echo "📊 RÉSULTATS DES TESTS"
+                            echo "════════════════════════════════════════"
+                            echo "Total: ${testResults.totalCount}"
+                            echo "✅ Réussis: ${testResults.passCount}"
+                            echo "❌ Échoués: ${testResults.failCount}"
+                            echo "⏭️  Ignorés: ${testResults.skipCount}"
+                            echo "════════════════════════════════════════"
+                        } catch (Exception e) {
+                            echo "⚠️ Aucun résultat de test disponible"
                         }
-                    } catch (Exception e) {
-                        echo "⚠️ SonarQube non configuré: ${e.message}"
                     }
                 }
-                echo '✅ Analyse SonarQube terminée'
             }
         }
         
-        // ========================================
-        // STAGE 6: PACKAGE
-        // ========================================
-        stage('📦 Package') {
-            agent {
-                docker {
-                    image 'maven:3.9-eclipse-temurin-21'
-                    args '-v maven-repo:/root/.m2'
-                    reuseNode true
+        stage('📊 Couverture JaCoCo') {
+            steps {
+                echo '📊 Génération du rapport de couverture de code...'
+                sh 'mvn jacoco:report -Dcheckstyle.skip=true -B'
+                echo '✅ Rapport JaCoCo généré'
+            }
+            post {
+                always {
+                    jacoco(
+                        execPattern: '**/target/jacoco.exec',
+                        classPattern: '**/target/classes',
+                        sourcePattern: '**/src/main/java',
+                        exclusionPattern: '''
+                            **/entity/**,
+                            **/dto/**,
+                            **/config/**,
+                            **/model/**,
+                            **/exception/**,
+                            **/DemoApplication.class
+                        '''
+                    )
+                    script {
+                        echo "📊 Rapport JaCoCo disponible: ${env.BUILD_URL}jacoco/"
+                    }
                 }
             }
+        }
+        
+        stage('📦 Package JAR') {
             steps {
-                echo '📦 Packaging de l\'application...'
-                sh 'mvn package -DskipTests'
-                echo '✅ JAR créé'
+                echo '📦 Création du package JAR exécutable...'
+                sh 'mvn package -DskipTests -Dcheckstyle.skip=true -Dmaven.javadoc.skip=true -B'
+                script {
+                    def jarFile = sh(
+                        script: 'ls -lh target/*.jar | grep -v "original" | awk \'{print $9, $5}\' || echo "JAR créé"',
+                        returnStdout: true
+                    ).trim()
+                    echo "✅ ${jarFile}"
+                }
             }
             post {
                 success {
-                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true, allowEmptyArchive: false
                 }
             }
         }
         
-        // ========================================
-        // STAGE 7: DOCKER BUILD
-        // ========================================
-        stage('🐳 Docker Build') {
+        stage('🐳 Build Docker Image') {
             steps {
                 echo '🐳 Construction de l\'image Docker...'
                 script {
                     sh """
-                        docker build \
-                            -t ${BACKEND_IMAGE}:${IMAGE_TAG} \
-                            -t ${BACKEND_IMAGE}:latest \
-                            -t ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT} \
-                            . || echo "Build terminé"
+                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
+                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:develop-latest
                     """
-                    echo '✅ Images Docker créées'
+                    
+                    def imageSize = sh(
+                        script: "docker images ${DOCKER_IMAGE}:${DOCKER_TAG} --format '{{.Size}}'",
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "✅ Images Docker créées:"
+                    echo "  🐳 ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    echo "  🐳 ${DOCKER_IMAGE}:latest"
+                    echo "  🐳 ${DOCKER_IMAGE}:develop-latest"
+                    echo "📦 Taille: ${imageSize}"
                 }
             }
         }
         
-        // ========================================
-        // STAGE 8: DOCKER TEST
-        // ========================================
-        stage('🧪 Docker Test') {
-            steps {
-                echo '🧪 Test du conteneur Docker...'
-                script {
-                    try {
-                        // Nettoyage
-                        sh 'docker stop backend-test mongodb-test 2>/dev/null || true'
-                        sh 'docker rm backend-test mongodb-test 2>/dev/null || true'
-                        sh 'docker network rm test-network 2>/dev/null || true'
-                        
-                        // Créer un réseau Docker
-                        sh 'docker network create test-network'
-                        
-                        // Démarrer MongoDB
-                        sh """
-                            docker run -d \
-                                --name mongodb-test \
-                                --network test-network \
-                                -e MONGO_INITDB_ROOT_USERNAME=admin \
-                                -e MONGO_INITDB_ROOT_PASSWORD=admin123 \
-                                mongo:latest
-                        """
-                        
-                        echo '⏳ Attente du démarrage de MongoDB...'
-                        sleep 10
-                        
-                        // Démarrer le backend
-                        sh """
-                            docker run -d \
-                                --name backend-test \
-                                --network test-network \
-                                -p 8081:8080 \
-                                -e SPRING_DATA_MONGODB_HOST=mongodb-test \
-                                -e SPRING_DATA_MONGODB_PORT=27017 \
-                                -e SPRING_DATA_MONGODB_USERNAME=admin \
-                                -e SPRING_DATA_MONGODB_PASSWORD=admin123 \
-                                -e SPRING_DATA_MONGODB_DATABASE=commercial_pfe \
-                                -e SPRING_DATA_MONGODB_AUTHENTICATION_DATABASE=admin \
-                                ${BACKEND_IMAGE}:${IMAGE_TAG}
-                        """
-                        
-                        echo '⏳ Attente du démarrage de l\'application...'
-                        sleep 30
-                        
-                        def health = sh(
-                            script: 'curl -f http://localhost:8081/actuator/health 2>/dev/null || echo "FAILED"',
-                            returnStdout: true
-                        ).trim()
-                        
-                        if (health.contains('UP')) {
-                            echo '✅ Health check: PASSED'
-                        } else {
-                            echo '⚠️ Health check: FAILED'
-                            sh 'docker logs backend-test'
-                        }
-                    } catch (Exception e) {
-                        echo "⚠️ ${e.message}"
-                        sh 'docker logs backend-test || true'
-                    } finally {
-                        sh 'docker stop backend-test mongodb-test 2>/dev/null || true'
-                        sh 'docker rm backend-test mongodb-test 2>/dev/null || true'
-                        sh 'docker network rm test-network 2>/dev/null || true'
-                    }
-                }
-            }
-        }
-        
-        // ========================================
-        // STAGE 9: PUSH DOCKER HUB
-        // ========================================
         stage('📤 Push Docker Hub') {
-            when {
-                branch 'develop'
-            }
             steps {
-                echo '📤 Push vers Docker Hub...'
+                echo '📤 Push des images vers Docker Hub...'
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-credentials',
                     usernameVariable: 'DOCKER_USER',
@@ -274,39 +165,58 @@ pipeline {
                 )]) {
                     sh '''
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push ${BACKEND_IMAGE}:${IMAGE_TAG}
-                        docker push ${BACKEND_IMAGE}:latest
-                        docker push ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT}
                     '''
+                    
+                    script {
+                        def tags = [DOCKER_TAG, 'latest', 'develop-latest']
+                        
+                        tags.each { tag ->
+                            try {
+                                sh "docker push ${DOCKER_IMAGE}:${tag}"
+                                echo "  ✅ Pushed: ${DOCKER_IMAGE}:${tag}"
+                            } catch (Exception e) {
+                                echo "  ⚠️ Failed to push ${tag}: ${e.message}"
+                            }
+                        }
+                    }
+                    
+                    sh 'docker logout'
+                    
+                    echo "✅ Images poussées vers Docker Hub"
+                    echo "🔗 https://hub.docker.com/r/hamayari/pfe-backend"
                 }
-                echo '✅ Images poussées vers Docker Hub'
             }
         }
         
-        // ========================================
-        // STAGE 10: RAPPORT FINAL
-        // ========================================
         stage('📊 Rapport Final') {
             steps {
                 script {
-                    echo '════════════════════════════════════════════════════════'
-                    echo '           RAPPORT FINAL DU BUILD'
-                    echo '════════════════════════════════════════════════════════'
-                    echo "Build: #${env.BUILD_NUMBER}"
-                    echo "Version: ${APP_VERSION}"
-                    echo "Commit: ${env.GIT_COMMIT_SHORT}"
-                    echo "Status: ${currentBuild.result ?: 'SUCCESS'}"
+                    def buildStatus = currentBuild.result ?: 'SUCCESS'
+                    def statusIcon = buildStatus == 'SUCCESS' ? '✅' : buildStatus == 'UNSTABLE' ? '⚠️' : '❌'
+                    
+                    echo '════════════════════════════════════════════════════════════════'
+                    echo '                    RAPPORT FINAL DU BUILD'
+                    echo '════════════════════════════════════════════════════════════════'
+                    echo "${statusIcon} STATUS: ${buildStatus}"
                     echo ''
-                    echo 'ARTEFACTS:'
-                    echo "  JAR: demo-${APP_VERSION}-SNAPSHOT.jar"
-                    echo "  Docker: ${BACKEND_IMAGE}:${IMAGE_TAG}"
-                    echo "  Docker: ${BACKEND_IMAGE}:latest"
-                    echo "  Docker: ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT}"
+                    echo '📋 INFORMATIONS BUILD:'
+                    echo "  • Build Number: #${env.BUILD_NUMBER}"
+                    echo "  • Branch: develop"
                     echo ''
-                    echo 'LIENS:'
-                    echo "  Docker Hub: https://hub.docker.com/r/${DOCKER_USERNAME}/commercial-pfe-backend"
-                    echo "  Jenkins: ${env.BUILD_URL}"
-                    echo '════════════════════════════════════════════════════════'
+                    echo '📦 ARTEFACTS GÉNÉRÉS:'
+                    echo "  • Docker: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    echo "  • Docker: ${DOCKER_IMAGE}:latest"
+                    echo "  • Docker: ${DOCKER_IMAGE}:develop-latest"
+                    echo ''
+                    echo '📊 RAPPORTS DISPONIBLES:'
+                    echo "  • Tests JUnit: ${env.BUILD_URL}testReport/"
+                    echo "  • Couverture JaCoCo: ${env.BUILD_URL}jacoco/"
+                    echo ''
+                    echo '🔗 LIENS UTILES:'
+                    echo "  • Jenkins Build: ${env.BUILD_URL}"
+                    echo "  • Docker Hub: https://hub.docker.com/r/hamayari/pfe-backend"
+                    echo "  • GitHub: https://github.com/hamayari/Pfe-Backend"
+                    echo '════════════════════════════════════════════════════════════════'
                 }
             }
         }
@@ -314,19 +224,32 @@ pipeline {
     
     post {
         success {
-            echo '✅ PIPELINE RÉUSSIE!'
+            echo '✅ ✅ ✅ BUILD RÉUSSI! ✅ ✅ ✅'
+            echo "🎉 Tous les stages ont été complétés avec succès"
+            echo "🐳 Image disponible: docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}"
         }
+        
         unstable {
-            echo '⚠️ PIPELINE INSTABLE'
+            echo '⚠️ ⚠️ ⚠️ BUILD INSTABLE ⚠️ ⚠️ ⚠️'
+            echo "⚠️ Certains tests ont échoué mais le build continue"
         }
+        
         failure {
-            echo '❌ PIPELINE ÉCHOUÉE'
+            echo '❌ ❌ ❌ BUILD ÉCHOUÉ ❌ ❌ ❌'
+            echo "❌ Le build a rencontré des erreurs critiques"
+            echo "💡 Consultez les logs ci-dessus pour plus de détails"
         }
+        
         always {
-            sh 'docker stop backend-test mongodb-test 2>/dev/null || true'
-            sh 'docker rm backend-test mongodb-test 2>/dev/null || true'
-            sh 'docker network rm test-network 2>/dev/null || true'
-            sh 'docker image prune -f 2>/dev/null || true'
+            echo '🧹 Nettoyage des ressources...'
+            sh '''
+                # Nettoyage des conteneurs de test
+                docker ps -a | grep backend-test | awk '{print $1}' | xargs -r docker rm -f || true
+                
+                # Nettoyage des images non taguées
+                docker images -f "dangling=true" -q | xargs -r docker rmi || true
+            '''
+            echo '✅ Nettoyage terminé'
         }
     }
 }

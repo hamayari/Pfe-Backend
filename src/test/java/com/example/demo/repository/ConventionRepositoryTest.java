@@ -23,9 +23,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * 
  * NOTE: Désactivé - ApplicationContext échoue à charger
  */
-// @DataMongoTest
+@DataMongoTest
 @ActiveProfiles("test")
-@org.junit.jupiter.api.Disabled("ApplicationContext fails to load - MongoDB configuration issue")
 class ConventionRepositoryTest {
 
     @Autowired

@@ -26,11 +26,11 @@ import static org.hamcrest.Matchers.*;
 /**
  * Tests d'intégration pour l'authentification
  * Teste le flux complet d'inscription et de connexion
+ * Utilise MongoDB embarqué (Flapdoodle) - Aucune dépendance externe
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@org.junit.jupiter.api.Disabled("ApplicationContext fails to load - configuration issue")
 @Transactional
 class AuthenticationIntegrationTest {
 
