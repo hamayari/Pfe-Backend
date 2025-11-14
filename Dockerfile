@@ -1,36 +1,36 @@
-# Stage 1: Build with Maven
-FROM maven:3.9-eclipse-temurin-17-alpine AS build
-
+# Stage 1: Build
+FROM maven:3.9.5-eclipse-temurin-17 AS build
 WORKDIR /app
 
-# Copy pom.xml and download dependencies (cached layer)
+# Copier les fichiers de configuration Maven
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
-# Copy source code
+# Copier le code source et compiler
 COPY src ./src
-
-# Build the application
 RUN mvn clean package -DskipTests
 
 # Stage 2: Runtime
 FROM eclipse-temurin:17-jre-alpine
-
 WORKDIR /app
 
-# Create non-root user for security
+# Créer un utilisateur non-root pour la sécurité
 RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
 
-# Copy the built jar from build stage
+# Copier le JAR depuis le stage de build
 COPY --from=build /app/target/*.jar app.jar
 
-# Expose port
+# Exposer le port
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+# Variables d'environnement par défaut
+ENV SPRING_PROFILES_ACTIVE=prod
+ENV JAVA_OPTS="-Xmx512m -Xms256m"
 
-# Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+# Démarrer l'application
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
