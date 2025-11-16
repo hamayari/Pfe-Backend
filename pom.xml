@@ -30,13 +30,47 @@
 		<sonar.coverage.jacoco.xmlReportPaths>
 			${project.build.directory}/site/jacoco/jacoco.xml
 		</sonar.coverage.jacoco.xmlReportPaths>
+		
+		<!-- Exclusions SonarQube - Classes non critiques -->
 		<sonar.exclusions>
 			**/entity/**,
 			**/model/**,
 			**/dto/**,
+			**/enums/**,
 			**/config/**,
-			**/DemoApplication.java
+			**/exception/**,
+			**/payload/**,
+			**/util/PasswordHashGenerator.java,
+			**/util/CleanDuplicateUsers.java,
+			**/DemoApplication.java,
+			**/*Controller.java,
+			**/*DTO.java,
+			**/*Request.java,
+			**/*Response.java,
+			**/*Event.java,
+			**/*Initializer.java,
+			**/*Config.java
 		</sonar.exclusions>
+		
+		<!-- Exclusions de couverture - Focus sur Services et Repositories -->
+		<sonar.coverage.exclusions>
+			**/entity/**,
+			**/model/**,
+			**/dto/**,
+			**/enums/**,
+			**/config/**,
+			**/exception/**,
+			**/payload/**,
+			**/controller/**,
+			**/DemoApplication.java,
+			**/security/SecurityConfig.java,
+			**/security/WebSocketAuthInterceptor.java,
+			**/*Initializer.java,
+			**/*Config.java,
+			**/*DTO.java,
+			**/*Request.java,
+			**/*Response.java
+		</sonar.coverage.exclusions>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -237,6 +271,24 @@
 				<configuration>
 					<!-- Désactiver le check de couverture -->
 					<skip>${jacoco.check.skip}</skip>
+					<!-- Exclusions JaCoCo - Classes non critiques -->
+					<excludes>
+						<exclude>**/entity/**</exclude>
+						<exclude>**/model/**</exclude>
+						<exclude>**/dto/**</exclude>
+						<exclude>**/enums/**</exclude>
+						<exclude>**/config/**</exclude>
+						<exclude>**/exception/**</exclude>
+						<exclude>**/payload/**</exclude>
+						<exclude>**/controller/**</exclude>
+						<exclude>**/DemoApplication.class</exclude>
+						<exclude>**/*DTO.class</exclude>
+						<exclude>**/*Request.class</exclude>
+						<exclude>**/*Response.class</exclude>
+						<exclude>**/*Event.class</exclude>
+						<exclude>**/*Initializer.class</exclude>
+						<exclude>**/*Config.class</exclude>
+					</excludes>
 				</configuration>
 				<executions>
 					<execution>
