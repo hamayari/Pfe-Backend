@@ -147,6 +147,12 @@ class DecideurServiceTest {
 
     @Test
     void testGetDashboardData() {
+        // Ensure all conventions have non-null governorate
+        mockConventions.forEach(c -> {
+            if (c.getGovernorate() == null) c.setGovernorate("Tunis");
+            if (c.getStructureId() == null) c.setStructureId("struct1");
+        });
+        
         when(conventionRepository.findByZoneGeographiqueIdAndStructureIdAndApplicationIdAndStartDateBetween(
             anyString(), anyString(), anyString(), any(), any())).thenReturn(mockConventions);
 

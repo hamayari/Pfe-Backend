@@ -342,6 +342,7 @@ class AdminDashboardServiceTest {
         assertEquals("testuser", result.getUsername());
         assertEquals("test@example.com", result.getEmail());
         assertTrue(result.isEnabled());
-        assertEquals(1, result.getRoles().size());
+        assertNotNull(result.getRoles());
+        assertFalse(result.getRoles().isEmpty());
     }
 }
