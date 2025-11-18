@@ -23,9 +23,31 @@
 *.keystore
 *.jks
 
+# Files with API keys and secrets
+BREVO_UPDATE.md
+BREVO_SETUP_COMPLETE.md
+RESUME_FINAL_EMAIL.md
+env.template
+test-brevo-simple.js
+test-email-config.js
+
 # IDE/editor configs (optional to ignore)
 .idea/
 .vscode/
 *.iml
+
+# Documentation and configuration files
+*.md
+*.txt
+*.html
+*.ps1
+*.json
+*.puml
+*.yml
+*.yaml
+*.pdf
+*.log
+*.bat
+*.js
 
 # Keep source and assets tracked explicitly (no ignore needed)
