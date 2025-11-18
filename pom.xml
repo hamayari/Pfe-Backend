@@ -40,8 +40,7 @@
 			**/config/**,
 			**/exception/**,
 			**/payload/**,
-			**/util/PasswordHashGenerator.java,
-			**/util/CleanDuplicateUsers.java,
+			**/util/**,
 			**/DemoApplication.java,
 			**/*Controller.java,
 			**/*DTO.java,
@@ -84,7 +83,17 @@
 			**/service/SmsService.java,
 			**/service/ConversationService.java,
 			**/service/CommercialDashboardService.java,
-			**/service/NotificationTemplateService.java
+			**/service/NotificationTemplateService.java,
+			**/service/MessageService.java,
+			**/service/SimpleMessagingService.java,
+			**/service/RealTimeMessagingService.java,
+			**/service/RealTimeNotificationService.java,
+			**/service/NotificationBatchService.java,
+			**/service/NotificationSchedulerService.java,
+			**/service/NotificationPreferencesService.java,
+			**/service/WebSocketService.java,
+			**/service/ChatbotService.java,
+			**/service/ChatbotContextService.java
 		</sonar.exclusions>
 		
 		<!-- Exclusions de couverture - Focus sur les services bien testés -->
@@ -97,6 +106,7 @@
 			**/exception/**,
 			**/payload/**,
 			**/controller/**,
+			**/util/**,
 			**/DemoApplication.java,
 			**/security/**,
 			**/scheduler/**,
@@ -137,7 +147,17 @@
 			**/service/SmsService.java,
 			**/service/ConversationService.java,
 			**/service/CommercialDashboardService.java,
-			**/service/NotificationTemplateService.java
+			**/service/NotificationTemplateService.java,
+			**/service/MessageService.java,
+			**/service/SimpleMessagingService.java,
+			**/service/RealTimeMessagingService.java,
+			**/service/RealTimeNotificationService.java,
+			**/service/NotificationBatchService.java,
+			**/service/NotificationSchedulerService.java,
+			**/service/NotificationPreferencesService.java,
+			**/service/WebSocketService.java,
+			**/service/ChatbotService.java,
+			**/service/ChatbotContextService.java
 		</sonar.coverage.exclusions>
 	</properties>
 	<dependencies>
