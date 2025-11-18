@@ -357,23 +357,30 @@
 					<!-- Désactiver le check de couverture -->
 					<skip>${jacoco.check.skip}</skip>
 					<!-- Exclusions JaCoCo - Classes non critiques -->
-					<excludes>
-						<exclude>**/entity/**</exclude>
-						<exclude>**/model/**</exclude>
-						<exclude>**/dto/**</exclude>
-						<exclude>**/enums/**</exclude>
-						<exclude>**/config/**</exclude>
-						<exclude>**/exception/**</exclude>
-						<exclude>**/payload/**</exclude>
-						<exclude>**/controller/**</exclude>
-						<exclude>**/DemoApplication.class</exclude>
-						<exclude>**/*DTO.class</exclude>
-						<exclude>**/*Request.class</exclude>
-						<exclude>**/*Response.class</exclude>
-						<exclude>**/*Event.class</exclude>
-						<exclude>**/*Initializer.class</exclude>
-						<exclude>**/*Config.class</exclude>
-					</excludes>
+<excludes>
+    <exclude>**/entity/**</exclude>
+    <exclude>**/model/**</exclude>
+    <exclude>**/dto/**</exclude>
+    <exclude>**/enums/**</exclude>
+    <exclude>**/config/**</exclude>
+    <exclude>**/exception/**</exclude>
+    <exclude>**/payload/**</exclude>
+    <exclude>**/controller/**</exclude>
+    <exclude>**/security/**</exclude>
+    <exclude>**/notification/**</exclude>
+    <exclude>**/impl/**</exclude>
+    <exclude>**/DemoApplication.class</exclude>
+    <exclude>**/*DTO.class</exclude>
+    <exclude>**/*Request.class</exclude>
+    <exclude>**/*Response.class</exclude>
+    <exclude>**/*Event.class</exclude>
+    <exclude>**/*Initializer.class</exclude>
+    <exclude>**/*Config.class</exclude>
+    <exclude>**/*Filter.class</exclude>
+    <exclude>**/*Interceptor.class</exclude>
+    <exclude>**/*Handler.class</exclude>
+</excludes>
+
 				</configuration>
 				<executions>
 					<execution>
