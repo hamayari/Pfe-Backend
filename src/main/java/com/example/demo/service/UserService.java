@@ -86,13 +86,24 @@ public class UserService {
         user.setRoles(roles);
         
         user.setCreatedAt(Instant.now());
-        // Initialisation pour utilisateur actif
+        
+        // ✅ Initialisation complète pour utilisateur actif et prêt à se connecter
+        user.setEnabled(true);
         user.setIsActive(true);
         user.setEmailVerified(true);
         user.setLocked(false);
+        user.setForcePasswordChange(false);
+        user.setMustChangePassword(false);
         
-        System.out.println("✅ Utilisateur créé: " + user.getUsername() + " avec rôles: " + 
-                          user.getRoles().stream().map(r -> r.getName().name()).collect(Collectors.joining(", ")));
+        System.out.println("========================================");
+        System.out.println("✅ [USER] Création utilisateur");
+        System.out.println("👤 Username: " + user.getUsername());
+        System.out.println("📧 Email: " + user.getEmail());
+        System.out.println("🔑 Password encodé: " + user.getPassword().substring(0, 20) + "...");
+        System.out.println("👥 Rôles: " + user.getRoles().stream().map(r -> r.getName().name()).collect(Collectors.joining(", ")));
+        System.out.println("✅ Enabled: " + user.isEnabled());
+        System.out.println("✅ Active: " + user.isActive());
+        System.out.println("========================================");
         
         return userRepository.save(user);
     }

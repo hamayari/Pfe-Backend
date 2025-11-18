@@ -268,6 +268,8 @@ public class AuthService {
 
     @Transactional
     public void initiatePasswordReset(String email) {
+        logger.info("🔐 [RESET PASSWORD] Début de la réinitialisation pour: {}", email);
+        
         // 🔒 SÉCURITÉ: Ne pas révéler si l'email existe ou non
         // Toujours retourner un succès, mais n'envoyer l'email que si l'utilisateur existe
         
@@ -282,6 +284,7 @@ public class AuthService {
         }
         
         User user = userOpt.get();
+        logger.info("✅ Utilisateur trouvé: {} (ID: {})", user.getUsername(), user.getId());
         
         // Vérifier que l'utilisateur est actif
         if (!user.isActive()) {
@@ -297,19 +300,42 @@ public class AuthService {
         logger.info("🔐 Token généré pour {}: {}", user.getEmail(), resetToken);
         logger.info("🔐 Expiration du token: {}", user.getResetTokenExpiry());
         
-        User savedUser = userRepository.save(user);
-        logger.info("✅ Token sauvegardé dans la base de données pour: {}", savedUser.getEmail());
+        try {
+            User savedUser = userRepository.save(user);
+            logger.info("✅ Token sauvegardé dans la base de données pour: {}", savedUser.getEmail());
+        } catch (Exception e) {
+            logger.error("❌ Erreur lors de la sauvegarde du token: {}", e.getMessage());
+            throw new RuntimeException("Erreur lors de la sauvegarde du token", e);
+        }
         
-        logger.info("🔐 Demande de réinitialisation de mot de passe pour: {}", user.getEmail());
+        logger.info("📧 Tentative d'envoi de l'email de réinitialisation...");
         
         // Envoyer l'email de réinitialisation
         try {
+            if (emailService == null) {
+                logger.error("❌ EmailService est null!");
+                throw new RuntimeException("EmailService n'est pas initialisé");
+            }
+            
+            logger.info("📧 Appel de emailService.sendPasswordResetEmail()...");
             emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
             logger.info("✅ Email de réinitialisation envoyé à: {}", user.getEmail());
+            
         } catch (Exception e) {
-            logger.error("❌ Erreur lors de l'envoi de l'email de réinitialisation: {}", e.getMessage());
-            // Ne pas bloquer le processus même si l'email échoue
+            logger.error("❌ ERREUR lors de l'envoi de l'email de réinitialisation:");
+            logger.error("   Type: {}", e.getClass().getName());
+            logger.error("   Message: {}", e.getMessage());
+            if (e.getCause() != null) {
+                logger.error("   Cause: {}", e.getCause().getMessage());
+                logger.error("   Cause Type: {}", e.getCause().getClass().getName());
+            }
+            logger.error("   Stack trace:", e);
+            
+            // Lancer l'exception pour que le frontend sache qu'il y a eu une erreur
+            throw new RuntimeException("Impossible d'envoyer l'email de réinitialisation: " + e.getMessage(), e);
         }
+        
+        logger.info("✅ [RESET PASSWORD] Processus terminé avec succès pour: {}", email);
     }
 
     @Transactional

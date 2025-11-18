@@ -20,7 +20,7 @@ import java.util.*;
 
 /**
  * Service de détection automatique des anomalies KPI
- * Notifie automatiquement le Chef de Projet sans intervention du Décideur
+ * ⚠️ DÉSACTIVÉ pour les taux - Utiliser InvoiceAlertService pour les factures PENDING
  */
 @Service
 public class AutomaticKpiAlertService {
@@ -56,6 +56,9 @@ public class AutomaticKpiAlertService {
     private static final Map<String, KpiThreshold> KPI_THRESHOLDS = new HashMap<>();
     
     static {
+        // ✅ ALERTES SUR LES TAUX RÉACTIVÉES
+        // Ces alertes coexistent avec les alertes individuelles sur les factures PENDING
+        
         // Taux de retard
         KPI_THRESHOLDS.put("TAUX_RETARD", new KpiThreshold(10.0, 15.0, "Taux de factures en retard"));
         
@@ -73,6 +76,10 @@ public class AutomaticKpiAlertService {
     }
     
     
+    /**
+     * ❌ DÉSACTIVÉ - Ne plus vérifier les anomalies de taux automatiquement
+     * Utiliser InvoiceAlertService.checkPendingInvoices() à la place
+     */
     @Deprecated
     public void checkKpiAnomalies() {
         System.out.println("========================================");

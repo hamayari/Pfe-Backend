@@ -6,6 +6,7 @@ import com.example.demo.repository.ConventionRepository;
 import com.example.demo.repository.InvoiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+@Profile("!test")
 @Order(10) // Exécuter après DataInitializer
 public class TestDataInitializer implements CommandLineRunner {
 

@@ -40,9 +40,9 @@ public class CommercialDashboardService {
         KPIMetricsDTO kpi = new KPIMetricsDTO();
         
         try {
-            // Pour les commerciaux, utiliser TOUTES les conventions et factures
-            List<Convention> conventions = conventionRepository.findAll();
-            List<Invoice> invoices = invoiceRepository.findAll();
+            // ✅ CORRECTION : Filtrer par commercial (createdBy = userId)
+            List<Convention> conventions = conventionRepository.findByCreatedBy(userId);
+            List<Invoice> invoices = invoiceRepository.findByCreatedBy(userId);
         
         kpi.setTotalConventions(conventions.size());
         kpi.setActiveConventions((int) conventions.stream()
@@ -114,8 +114,8 @@ public class CommercialDashboardService {
     public ConventionStatsDTO getConventionStats(String userId) {
         ConventionStatsDTO stats = new ConventionStatsDTO();
         try {
-            // Pour les commerciaux, utiliser TOUTES les conventions
-            List<Convention> conventions = conventionRepository.findAll();
+            // ✅ CORRECTION : Filtrer par commercial (createdBy = userId)
+            List<Convention> conventions = conventionRepository.findByCreatedBy(userId);
         
         stats.setTotal(conventions.size());
         stats.setActive((int) conventions.stream()
@@ -160,8 +160,8 @@ public class CommercialDashboardService {
     public InvoiceStatsDTO getInvoiceStats(String userId) {
         InvoiceStatsDTO stats = new InvoiceStatsDTO();
         try {
-            // Pour les commerciaux, utiliser TOUTES les factures
-            List<Invoice> invoices = invoiceRepository.findAll();
+            // ✅ CORRECTION : Filtrer par commercial (createdBy = userId)
+            List<Invoice> invoices = invoiceRepository.findByCreatedBy(userId);
         
         stats.setTotal(invoices.size());
         stats.setPaid((int) invoices.stream()
@@ -244,8 +244,8 @@ public class CommercialDashboardService {
                                             String structureId, String governorate, String status,
                                             String startDate, String endDate, String tags,
                                             Double amountMin, Double amountMax) {
-        // Pour les commerciaux, rechercher dans TOUTES les conventions
-        List<Convention> conventions = conventionRepository.findAll();
+        // ✅ CORRECTION : Filtrer par commercial (createdBy = userId)
+        List<Convention> conventions = conventionRepository.findByCreatedBy(userId);
         
         return conventions.stream()
             .filter(c -> reference == null || c.getReference().contains(reference))
@@ -262,8 +262,8 @@ public class CommercialDashboardService {
                                       String status, String startDate, String endDate,
                                       Double amountMin, Double amountMax, String dueDateFrom,
                                       String dueDateTo) {
-        // Pour les commerciaux, rechercher dans TOUTES les factures
-        List<Invoice> invoices = invoiceRepository.findAll();
+        // ✅ CORRECTION : Filtrer par commercial (createdBy = userId)
+        List<Invoice> invoices = invoiceRepository.findByCreatedBy(userId);
         
         return invoices.stream()
             .filter(i -> invoiceNumber == null || i.getInvoiceNumber().contains(invoiceNumber))

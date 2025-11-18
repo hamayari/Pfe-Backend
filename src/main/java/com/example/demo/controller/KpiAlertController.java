@@ -60,6 +60,37 @@ public class KpiAlertController {
     }
     
     /**
+     * ✅ Vérifier les factures PENDING et créer des alertes individuelles
+     * NOUVEAU SYSTÈME: 1 alerte = 1 facture PENDING
+     * Le Décideur reçoit les alertes et peut les déléguer au Chef de Projet
+     */
+    @PostMapping("/check-pending-invoices")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DECISION_MAKER', 'PROJECT_MANAGER')")
+    public ResponseEntity<Map<String, Object>> checkPendingInvoices() {
+        try {
+            var alerts = invoiceAlertService.checkPendingInvoices();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("message", alerts.size() + " alertes créées pour les factures PENDING");
+            response.put("count", alerts.size());
+            response.put("alerts", alerts);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Erreur vérification factures PENDING: " + e.getMessage());
+            e.printStackTrace();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "error");
+            response.put("message", "Erreur: " + e.getMessage());
+            
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+    
+    /**
      * Vérifier les factures en retard et créer des alertes individuelles
      * NOUVEAU SYSTÈME: 1 alerte = 1 facture
      */

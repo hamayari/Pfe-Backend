@@ -8,6 +8,7 @@ import com.example.demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ import java.util.Set;
  * Credentials are configured in application.properties
  */
 @Component
+@Profile("!test")
 public class SuperAdminInitializer implements CommandLineRunner {
     private static final Logger logger = LoggerFactory.getLogger(SuperAdminInitializer.class);
 

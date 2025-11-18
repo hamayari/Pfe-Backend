@@ -284,11 +284,19 @@ public class KpiAlertManagementService {
     
     /**
      * Obtenir TOUTES les alertes PENDING_DECISION (pour le Décideur)
+     * ✅ FILTRE: Retourne UNIQUEMENT les alertes de factures PENDING
      */
     public List<KpiAlert> getAllPendingDecisionAlerts() {
-        List<KpiAlert> alerts = alertRepository.findByAlertStatus("PENDING_DECISION");
-        System.out.println("✅ Récupération de " + alerts.size() + " alertes PENDING_DECISION");
-        return alerts;
+        List<KpiAlert> allAlerts = alertRepository.findByAlertStatus("PENDING_DECISION");
+        
+        // ✅ FILTRER pour garder UNIQUEMENT les alertes de factures PENDING
+        List<KpiAlert> filteredAlerts = allAlerts.stream()
+            .filter(alert -> "FACTURE_PENDING".equals(alert.getKpiName()))
+            .collect(java.util.stream.Collectors.toList());
+        
+        System.out.println("✅ Récupération de " + filteredAlerts.size() + " alertes de factures PENDING (sur " + allAlerts.size() + " alertes totales)");
+        
+        return filteredAlerts;
     }
     
     /**

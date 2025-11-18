@@ -18,7 +18,7 @@ public class AlertScheduler {
     private final InvoiceAlertService invoiceAlertService;
 
     /**
-     * Génère automatiquement les alertes pour les factures OVERDUE
+     * Génère automatiquement les alertes pour les factures PENDING
      * Exécuté toutes les 5 minutes + au démarrage (après 30 secondes)
      */
     @Scheduled(fixedRate = 300000, initialDelay = 30000) // 5 min, démarrage après 30s
@@ -26,7 +26,8 @@ public class AlertScheduler {
         log.info("🔔 [SCHEDULER] Génération automatique des alertes - {}", java.time.LocalDateTime.now());
         
         try {
-            var alerts = invoiceAlertService.checkOverdueInvoices();
+            // Vérifier les factures PENDING (en attente de paiement)
+            var alerts = invoiceAlertService.checkPendingInvoices();
             log.info("✅ [SCHEDULER] {} alerte(s) générée(s)/mise(s) à jour", alerts.size());
             
         } catch (Exception e) {

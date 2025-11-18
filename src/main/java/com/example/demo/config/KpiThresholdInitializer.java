@@ -4,6 +4,7 @@ import com.example.demo.model.KpiThreshold;
 import com.example.demo.repository.KpiThresholdRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
  * Initialise les seuils KPI par défaut au démarrage
  */
 @Component
+@Profile("!test")
 public class KpiThresholdInitializer implements CommandLineRunner {
     
     @Autowired

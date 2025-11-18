@@ -6,12 +6,14 @@ import com.example.demo.repository.RoleRepository;
 import com.example.demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
 import java.util.Set;
 
 @Component
+@Profile("!test")  // Don't run this in test profile
 public class UserRoleAssigner implements CommandLineRunner {
     
     @Autowired

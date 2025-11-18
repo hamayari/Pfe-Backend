@@ -1,0 +1,85 @@
+<!-- Configuration JaCoCo avec seuils réalistes -->
+<plugin>
+    <groupId>org.jacoco</groupId>
+    <artifactId>jacoco-maven-plugin</artifactId>
+    <version>0.8.10</version>
+    <executions>
+        <!-- Préparer l'agent JaCoCo -->
+        <execution>
+            <id>prepare-agent</id>
+            <goals>
+                <goal>prepare-agent</goal>
+            </goals>
+        </execution>
+        
+        <!-- Générer le rapport après les tests -->
+        <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+                <goal>report</goal>
+            </goals>
+        </execution>
+        
+        <!-- Vérification de la couverture avec seuils réalistes -->
+        <execution>
+            <id>jacoco-check</id>
+            <phase>verify</phase>
+            <goals>
+                <goal>check</goal>
+            </goals>
+            <configuration>
+                <rules>
+                    <!-- Règle globale pour le projet -->
+                    <rule>
+                        <element>BUNDLE</element>
+                        <limits>
+                            <limit>
+                                <counter>LINE</counter>
+                                <value>COVEREDRATIO</value>
+                                <minimum>0.30</minimum> <!-- 30% minimum global -->
+                            </limit>
+                            <limit>
+                                <counter>BRANCH</counter>
+                                <value>COVEREDRATIO</value>
+                                <minimum>0.25</minimum> <!-- 25% minimum branches -->
+                            </limit>
+                        </limits>
+                    </rule>
+                    
+                    <!-- Règles spécifiques pour les packages critiques -->
+                    <rule>
+                        <element>PACKAGE</element>
+                        <limits>
+                            <limit>
+                                <counter>LINE</counter>
+                                <value>COVEREDRATIO</value>
+                                <minimum>0.20</minimum> <!-- 20% minimum par package -->
+                            </limit>
+                        </limits>
+                    </rule>
+                </rules>
+                
+                <!-- Exclusions des classes non testables -->
+                <excludes>
+                    <!-- Entités et modèles (POJOs) -->
+                    <exclude>**/model/**</exclude>
+                    <exclude>**/entity/**</exclude>
+                    <exclude>**/dto/**</exclude>
+                    
+                    <!-- Configuration -->
+                    <exclude>**/config/**</exclude>
+                    <exclude>**/DemoApplication.class</exclude>
+                    
+                    <!-- Exceptions personnalisées -->
+                    <exclude>**/exception/**Exception.class</exclude>
+                    
+                    <!-- Requests/Responses -->
+                    <exclude>**/payload/**</exclude>
+                    <exclude>**/request/**</exclude>
+                    <exclude>**/response/**</exclude>
+                </excludes>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>

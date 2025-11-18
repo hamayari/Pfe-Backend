@@ -27,7 +27,7 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
     
-    @Value("${mail.from.address:noreply@gestionpro.com}")
+    @Value("${mail.from.address:eyayari123@gmail.com}")
     private String fromAddress;
     
     @Value("${mail.from.name:GestionPro}")
@@ -53,14 +53,22 @@ public class EmailService {
             helper.setSubject(subject);
             helper.setText(content, true); // true pour HTML
             
+            System.out.println("📤 Tentative d'envoi email à: " + to + " depuis " + fromEmail);
             mailSender.send(message);
-            System.out.println("✅ Email envoyé avec succès à: " + to + " depuis " + fromEmail);
+            System.out.println("✅ Email envoyé avec succès à: " + to);
             
         } catch (MessagingException e) {
-            System.err.println("❌ Erreur envoi email à " + to + ": " + e.getMessage());
+            System.err.println("❌ ERREUR ENVOI EMAIL à " + to);
+            System.err.println("❌ Message: " + e.getMessage());
+            System.err.println("❌ Cause: " + (e.getCause() != null ? e.getCause().getMessage() : "Aucune"));
+            System.err.println("❌ Configuration SMTP:");
+            System.err.println("   - Host: smtp-relay.brevo.com");
+            System.err.println("   - Port: 587");
+            System.err.println("   - Username: " + fromEmail);
+            System.err.println("   - From: " + fromEmail);
             e.printStackTrace();
-            // Ne pas lancer d'exception pour ne pas bloquer le processus
-            System.err.println("⚠️ L'envoi d'email a échoué mais le processus continue");
+            // LANCER L'EXCEPTION pour que le frontend sache qu'il y a eu une erreur
+            throw new RuntimeException("Échec d'envoi email: " + e.getMessage(), e);
         }
     }
 
@@ -85,11 +93,25 @@ public class EmailService {
      * Envoi d'email de réinitialisation de mot de passe
      */
     public void sendPasswordResetEmail(String email, String resetToken) {
-        String subject = "🔐 Réinitialisation de votre mot de passe";
-        // Inclure un paramètre de rôle par défaut dans l'URL
-        String resetLink = "http://localhost:4200/auth/reset-password?token=" + resetToken + "&role=decision-maker";
-        String htmlContent = buildPasswordResetTemplate(email, resetLink);
-        sendEmail(email, subject, htmlContent);
+        System.out.println("========================================");
+        System.out.println("📧 [EMAIL] Envoi email de réinitialisation");
+        System.out.println("📧 Destinataire: " + email);
+        System.out.println("🔑 Token: " + resetToken);
+        System.out.println("========================================");
+        
+        try {
+            String subject = "🔐 Réinitialisation de votre mot de passe";
+            // Inclure un paramètre de rôle par défaut dans l'URL
+            String resetLink = "http://localhost:4200/auth/reset-password?token=" + resetToken + "&role=decision-maker";
+            String htmlContent = buildPasswordResetTemplate(email, resetLink);
+            sendEmail(email, subject, htmlContent);
+            
+            System.out.println("✅ [EMAIL] Email de réinitialisation envoyé avec succès");
+        } catch (Exception e) {
+            System.err.println("❌ [EMAIL] Erreur lors de l'envoi: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Impossible d'envoyer l'email de réinitialisation", e);
+        }
     }
 
     /**

@@ -391,8 +391,15 @@ public class ChatbotNLPService {
             System.out.println("👔 Rôle extrait: " + role);
         }
         
-        // Statut - Extraction améliorée
-        if (prompt.contains("payée") || prompt.contains("payé") || prompt.contains("paid")) {
+        // Statut - Extraction améliorée avec priorité pour "non payées"
+        if (prompt.contains("non payée") || prompt.contains("non payé") || 
+            prompt.contains("non payées") || prompt.contains("non payés") ||
+            prompt.contains("impayée") || prompt.contains("impayé") ||
+            prompt.contains("impayées") || prompt.contains("impayés") ||
+            prompt.contains("unpaid")) {
+            data.put("status", "PENDING");
+            System.out.println("📊 Statut extrait: PENDING (non payées)");
+        } else if (prompt.contains("payée") || prompt.contains("payé") || prompt.contains("paid")) {
             data.put("status", "PAID");
             System.out.println("📊 Statut extrait: PAID");
         } else if (prompt.contains("active") || prompt.contains("actif")) {
@@ -404,6 +411,9 @@ public class ChatbotNLPService {
         } else if (prompt.contains("pending") || prompt.contains("en attente")) {
             data.put("status", "PENDING");
             System.out.println("📊 Statut extrait: PENDING");
+        } else if (prompt.contains("en retard") || prompt.contains("retard") || prompt.contains("overdue")) {
+            data.put("status", "OVERDUE");
+            System.out.println("📊 Statut extrait: OVERDUE");
         } else if (prompt.contains("expired") || prompt.contains("expiré")) {
             data.put("status", "EXPIRED");
             System.out.println("📊 Statut extrait: EXPIRED");
@@ -596,6 +606,15 @@ public class ChatbotNLPService {
     private ChatbotResponse handleRead(EntityType entityType, Map<String, Object> data) {
         if (entityType == EntityType.CONVENTION) {
             List<Convention> conventions = conventionRepository.findAll();
+            
+            // Filtrer par statut si spécifié
+            String statusFilter = (String) data.get("status");
+            if (statusFilter != null) {
+                conventions = conventions.stream()
+                    .filter(c -> c.getStatus().equalsIgnoreCase(statusFilter))
+                    .toList();
+            }
+            
             String result = "📄 **Conventions trouvées:** " + conventions.size() + "\n\n";
             for (Convention c : conventions) {
                 result += "• " + c.getId() + " - " + c.getTitle() + " (" + c.getStatus() + ")\n";
@@ -605,6 +624,15 @@ public class ChatbotNLPService {
         
         if (entityType == EntityType.INVOICE) {
             List<Invoice> invoices = invoiceRepository.findAll();
+            
+            // Filtrer par statut si spécifié
+            String statusFilter = (String) data.get("status");
+            if (statusFilter != null) {
+                invoices = invoices.stream()
+                    .filter(i -> i.getStatus().equalsIgnoreCase(statusFilter))
+                    .toList();
+            }
+            
             String result = "📄 **Factures trouvées:** " + invoices.size() + "\n\n";
             for (Invoice i : invoices) {
                 result += "• " + i.getId() + " - " + i.getAmount() + " DT (" + i.getStatus() + ")\n";

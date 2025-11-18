@@ -60,8 +60,15 @@ public class AuthController {
     @PostMapping("/forgot-password")
     @Operation(summary = "Request password reset", description = "Initiates the password reset process")
     public ResponseEntity<String> forgotPassword(@RequestParam String email) {
-        authService.initiatePasswordReset(email);
-        return ResponseEntity.ok("Password reset email sent");
+        try {
+            authService.initiatePasswordReset(email);
+            return ResponseEntity.ok("Password reset email sent");
+        } catch (Exception e) {
+            System.err.println("❌ Erreur dans forgotPassword: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Erreur lors de l'envoi de l'email: " + e.getMessage());
+        }
     }
 
     @PostMapping("/reset-password")

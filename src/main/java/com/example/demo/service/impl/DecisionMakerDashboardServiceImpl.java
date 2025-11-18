@@ -3,7 +3,9 @@ package com.example.demo.service.impl;
 import com.example.demo.dto.dashboard.*;
 import com.example.demo.dto.dashboard.AlertSeverity;
 import com.example.demo.service.DecisionMakerDashboardService;
+import com.example.demo.repository.KpiAlertRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,9 @@ import java.util.stream.IntStream;
 @Service
 @Transactional(readOnly = true)
 public class DecisionMakerDashboardServiceImpl implements DecisionMakerDashboardService {
+    
+    @Autowired
+    private KpiAlertRepository kpiAlertRepository;
 
     @Override
     public Map<String, Object> getKPIs(LocalDate startDate, LocalDate endDate) {
@@ -213,43 +218,70 @@ public class DecisionMakerDashboardServiceImpl implements DecisionMakerDashboard
 
     @Override
     public List<AlertDTO> getAlerts(int limit) {
-        // In a real implementation, this would fetch alerts from a database
+        // ✅ Récupérer les VRAIES alertes depuis MongoDB
+        // Filtrer pour afficher UNIQUEMENT les alertes de factures PENDING
         List<AlertDTO> alerts = new ArrayList<>();
         
-        alerts.add(createAlert(
-            "REV-2023-001", 
-            "Revenue Drop in North Region", 
-            "Revenue in North region dropped by 15% compared to last month",
-            "HIGH",
-            LocalDateTime.now().minusHours(2),
-            "Revenue Analytics",
-            "/dashboard/revenue/region/North",
-            "Revenue"
-        ));
-        
-        alerts.add(createAlert(
-            "CUST-2023-045", 
-            "High Churn Risk - Enterprise Segment", 
-            "5 enterprise customers have not logged in for 30+ days",
-            "MEDIUM",
-            LocalDateTime.now().minusDays(1),
-            "Customer Success",
-            "/dashboard/customers/at-risk",
-            "Customer"
-        ));
-        
-        alerts.add(createAlert(
-            "SYS-2023-112", 
-            "Scheduled Maintenance", 
-            "System maintenance scheduled for tonight at 2:00 AM UTC",
-            "INFO",
-            LocalDateTime.now().minusHours(12),
-            "System",
-            "/settings/maintenance",
-            "System"
-        ));
+        try {
+            // Récupérer les alertes KPI depuis le repository
+            List<com.example.demo.model.KpiAlert> kpiAlerts = kpiAlertRepository
+                .findByAlertStatus("PENDING_DECISION");
+            
+            // Filtrer pour garder UNIQUEMENT les alertes de factures PENDING
+            for (com.example.demo.model.KpiAlert kpiAlert : kpiAlerts) {
+                // ✅ Afficher UNIQUEMENT les alertes de type FACTURE_PENDING
+                if ("FACTURE_PENDING".equals(kpiAlert.getKpiName())) {
+                    AlertDTO alert = new AlertDTO();
+                    alert.setId(kpiAlert.getId());
+                    alert.setTitle("Facture en attente: " + kpiAlert.getDimensionValue());
+                    alert.setDescription(kpiAlert.getMessage());
+                    
+                    // Convertir la severity String en enum AlertSeverity
+                    AlertSeverity severity = convertSeverity(kpiAlert.getSeverity());
+                    alert.setSeverity(severity);
+                    
+                    alert.setTimestamp(kpiAlert.getDetectedAt());
+                    alert.setSource("Factures");
+                    alert.setActionUrl("/invoices/" + kpiAlert.getRelatedInvoiceId());
+                    alert.setCategory("Invoice");
+                    alert.setAcknowledged(false);
+                    
+                    // Ajouter les métadonnées de la facture
+                    alert.setMetadata(kpiAlert.getMetadata());
+                    
+                    alerts.add(alert);
+                }
+            }
+            
+            System.out.println("✅ " + alerts.size() + " alertes de factures PENDING récupérées pour le Décideur");
+            
+        } catch (Exception e) {
+            System.err.println("❌ Erreur récupération alertes: " + e.getMessage());
+            e.printStackTrace();
+        }
         
         return alerts.stream().limit(limit).collect(Collectors.toList());
+    }
+    
+    /**
+     * Convertir la severity String en enum AlertSeverity
+     */
+    private AlertSeverity convertSeverity(String severity) {
+        if (severity == null) {
+            return AlertSeverity.INFO;
+        }
+        
+        switch (severity.toUpperCase()) {
+            case "CRITICAL":
+            case "HIGH":
+                return AlertSeverity.HIGH;
+            case "MEDIUM":
+                return AlertSeverity.MEDIUM;
+            case "LOW":
+                return AlertSeverity.LOW;
+            default:
+                return AlertSeverity.INFO;
+        }
     }
 
     @Override

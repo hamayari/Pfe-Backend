@@ -7,6 +7,7 @@ import com.example.demo.enums.ERole;
 import com.example.demo.repository.InvoiceRepository;
 import com.example.demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -16,7 +17,8 @@ import java.util.*;
 
 /**
  * Service pour créer des alertes individuelles par facture impayée
- * 1 alerte = 1 facture OVERDUE
+ * 1 alerte = 1 facture PENDING ou OVERDUE
+ * ✅ Vérification automatique toutes les heures
  */
 @Service
 public class InvoiceAlertService {
@@ -34,9 +36,55 @@ public class InvoiceAlertService {
     private com.example.demo.repository.KpiAlertRepository kpiAlertRepository;
     
     /**
+     * ✅ Vérifier les factures PENDING et créer des alertes individuelles
+     * Chaque facture PENDING génère une alerte pour le Décideur
+     * 🔄 Exécution automatique toutes les heures
+     */
+    @Scheduled(fixedRate = 3600000) // Toutes les heures (3600000 ms)
+    public List<KpiAlert> checkPendingInvoices() {
+        System.out.println("========================================");
+        System.out.println("🔍 [INVOICE ALERT] Vérification des factures PENDING");
+        System.out.println("========================================");
+        
+        List<KpiAlert> createdAlerts = new ArrayList<>();
+        
+        try {
+            // Récupérer toutes les factures PENDING
+            List<Invoice> pendingInvoices = invoiceRepository.findByStatus("PENDING");
+            System.out.println("📊 Factures PENDING trouvées: " + pendingInvoices.size());
+            
+            if (pendingInvoices.isEmpty()) {
+                System.out.println("✅ Aucune facture PENDING");
+                System.out.println("========================================");
+                return createdAlerts;
+            }
+            
+            // Récupérer les décideurs
+            List<User> decisionMakers = userRepository.findByRoles_Name(ERole.ROLE_DECISION_MAKER);
+            
+            // Créer une alerte pour chaque facture PENDING
+            for (Invoice invoice : pendingInvoices) {
+                KpiAlert alert = createAlertForPendingInvoice(invoice, decisionMakers);
+                if (alert != null) {
+                    createdAlerts.add(alert);
+                }
+            }
+            
+            System.out.println("✅ " + createdAlerts.size() + " alertes créées");
+            System.out.println("========================================");
+            
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la vérification: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return createdAlerts;
+    }
+    
+    /**
      * ❌ MÉTHODE OBSOLÈTE - NE PLUS UTILISER
-     * Utiliser KpiEvaluatorService.analyzeAllKpis() à la place
-     * @deprecated Remplacé par KpiEvaluatorService pour éviter les doublons
+     * Utiliser checkPendingInvoices() à la place
+     * @deprecated Remplacé par checkPendingInvoices()
      */
     @Deprecated
     public List<KpiAlert> checkOverdueInvoices() {
@@ -80,7 +128,148 @@ public class InvoiceAlertService {
     }
     
     /**
-     * Créer une alerte pour une facture spécifique
+     * Créer une alerte pour une facture PENDING
+     */
+    private KpiAlert createAlertForPendingInvoice(Invoice invoice, List<User> decisionMakers) {
+        try {
+            // ✅ VÉRIFIER SI UNE ALERTE EXISTE DÉJÀ POUR CETTE FACTURE
+            List<KpiAlert> existingAlerts = kpiAlertRepository
+                .findByRelatedInvoiceId(invoice.getId());
+            
+            // Filtrer les alertes non envoyées au PM
+            List<KpiAlert> pendingAlerts = existingAlerts.stream()
+                .filter(a -> "PENDING_DECISION".equals(a.getAlertStatus()))
+                .collect(java.util.stream.Collectors.toList());
+            
+            if (!pendingAlerts.isEmpty()) {
+                System.out.println("⚠️ Alerte déjà existante pour la facture " + invoice.getReference() + " - Mise à jour");
+                KpiAlert alert = pendingAlerts.get(0);
+                
+                // Supprimer les doublons
+                if (pendingAlerts.size() > 1) {
+                    System.out.println("🗑️ Suppression de " + (pendingAlerts.size() - 1) + " doublon(s)");
+                    for (int i = 1; i < pendingAlerts.size(); i++) {
+                        kpiAlertRepository.delete(pendingAlerts.get(i));
+                    }
+                }
+                
+                updateExistingPendingAlert(alert, invoice, decisionMakers);
+                return kpiAlertRepository.save(alert);
+            }
+            
+            System.out.println("✅ Création d'une NOUVELLE alerte pour la facture PENDING " + invoice.getReference());
+            
+            // Créer l'alerte
+            KpiAlert alert = new KpiAlert();
+            alert.setKpiName("FACTURE_PENDING");
+            
+            // Informations de la facture
+            alert.setDimension("INVOICE");
+            alert.setDimensionValue(invoice.getReference());
+            
+            // Valeurs
+            double amount = parseAmount(invoice.getAmount());
+            alert.setCurrentValue(amount);
+            alert.setThresholdValue(0.0);
+            
+            // Sévérité basée sur le montant et l'ancienneté
+            LocalDate createdAt = invoice.getCreatedAt();
+            long daysOld = createdAt != null ? ChronoUnit.DAYS.between(createdAt, LocalDate.now()) : 0;
+            
+            String severity;
+            String priority;
+            if (amount > 50000 || daysOld > 30) {
+                severity = "HIGH";
+                priority = "HIGH";
+            } else if (amount > 20000 || daysOld > 14) {
+                severity = "MEDIUM";
+                priority = "NORMAL";
+            } else {
+                severity = "LOW";
+                priority = "LOW";
+            }
+            alert.setSeverity(severity);
+            alert.setPriority(priority);
+            
+            // Message détaillé avec toutes les infos de la facture
+            String message = String.format(
+                "📄 Facture PENDING: %s\n" +
+                "💰 Montant: %.2f TND\n" +
+                "👤 Client: %s\n" +
+                "📧 Email: %s\n" +
+                "📅 Date création: %s\n" +
+                "📅 Date échéance: %s\n" +
+                "⏳ Ancienneté: %d jours",
+                invoice.getReference(),
+                amount,
+                invoice.getClientId() != null ? invoice.getClientId() : "N/A",
+                invoice.getClientEmail() != null ? invoice.getClientEmail() : "N/A",
+                invoice.getIssueDate() != null ? invoice.getIssueDate().toString() : "N/A",
+                invoice.getDueDate() != null ? invoice.getDueDate().toString() : "N/A",
+                daysOld
+            );
+            alert.setMessage(message);
+            
+            // Recommandation
+            String recommendation = String.format(
+                "Actions recommandées:\n" +
+                "1. Vérifier le statut de la facture avec le commercial\n" +
+                "2. Contacter le client pour confirmer la réception\n" +
+                "3. Relancer si nécessaire\n" +
+                "4. Déléguer au Chef de Projet pour suivi"
+            );
+            alert.setRecommendation(recommendation);
+            
+            // Statut initial
+            alert.setAlertStatus("PENDING_DECISION");
+            alert.setStatus("🟡 EN ATTENTE");
+            
+            // Destinataires (Décideurs uniquement)
+            List<String> recipients = new ArrayList<>();
+            for (User dm : decisionMakers) {
+                recipients.add(dm.getId());
+            }
+            alert.setRecipients(recipients);
+            
+            // Lien direct vers la facture
+            alert.setRelatedInvoiceId(invoice.getId());
+            
+            // Métadonnées complètes de la facture
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("invoiceId", invoice.getId());
+            metadata.put("invoiceNumber", invoice.getInvoiceNumber());
+            metadata.put("reference", invoice.getReference());
+            metadata.put("clientId", invoice.getClientId());
+            metadata.put("clientEmail", invoice.getClientEmail());
+            metadata.put("amount", amount);
+            metadata.put("dueDate", invoice.getDueDate() != null ? invoice.getDueDate().toString() : null);
+            metadata.put("issueDate", invoice.getIssueDate() != null ? invoice.getIssueDate().toString() : null);
+            metadata.put("createdBy", invoice.getCreatedBy());
+            metadata.put("status", invoice.getStatus());
+            metadata.put("paymentMethod", invoice.getPaymentMethod());
+            metadata.put("daysOld", daysOld);
+            alert.setMetadata(metadata);
+            
+            // Sauvegarder l'alerte
+            KpiAlert savedAlert = alertManagementService.createAlert(alert, "system");
+            
+            System.out.println(String.format(
+                "✅ Alerte PENDING créée: %s - %.2f TND - %d jours",
+                invoice.getReference(),
+                amount,
+                daysOld
+            ));
+            
+            return savedAlert;
+            
+        } catch (Exception e) {
+            System.err.println("❌ Erreur création alerte PENDING pour facture " + invoice.getReference() + ": " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Créer une alerte pour une facture spécifique (OVERDUE)
      */
     private KpiAlert createAlertForInvoice(Invoice invoice, List<User> decisionMakers) {
         try {
@@ -256,6 +445,48 @@ public class InvoiceAlertService {
                 daysOverdue
             );
         }
+    }
+    
+    /**
+     * Mettre à jour une alerte existante pour facture PENDING
+     */
+    private void updateExistingPendingAlert(KpiAlert alert, Invoice invoice, List<User> decisionMakers) {
+        // Recalculer l'ancienneté
+        LocalDate createdAt = invoice.getCreatedAt();
+        long daysOld = createdAt != null ? ChronoUnit.DAYS.between(createdAt, LocalDate.now()) : 0;
+        
+        // Mettre à jour la sévérité
+        double amount = parseAmount(invoice.getAmount());
+        String severity;
+        if (amount > 50000 || daysOld > 30) {
+            severity = "HIGH";
+        } else if (amount > 20000 || daysOld > 14) {
+            severity = "MEDIUM";
+        } else {
+            severity = "LOW";
+        }
+        alert.setSeverity(severity);
+        
+        // Mettre à jour le message
+        String message = String.format(
+            "📄 Facture PENDING: %s\n" +
+            "💰 Montant: %.2f TND\n" +
+            "👤 Client: %s\n" +
+            "📧 Email: %s\n" +
+            "📅 Date création: %s\n" +
+            "📅 Date échéance: %s\n" +
+            "⏳ Ancienneté: %d jours",
+            invoice.getReference(),
+            amount,
+            invoice.getClientId() != null ? invoice.getClientId() : "N/A",
+            invoice.getClientEmail() != null ? invoice.getClientEmail() : "N/A",
+            invoice.getIssueDate() != null ? invoice.getIssueDate().toString() : "N/A",
+            invoice.getDueDate() != null ? invoice.getDueDate().toString() : "N/A",
+            daysOld
+        );
+        alert.setMessage(message);
+        
+        System.out.println("✅ Alerte PENDING mise à jour pour facture " + invoice.getReference());
     }
     
     /**

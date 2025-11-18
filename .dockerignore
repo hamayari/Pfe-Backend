@@ -1,13 +1,43 @@
+# Maven
 target/
-.mvn/
-mvnw
-mvnw.cmd
-.git
-.gitignore
-*.md
-.vscode
-.idea
+!target/*.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# IDE
+.idea/
 *.iml
-logs/
+.vscode/
+.settings/
+.classpath
+.project
+
+# Tests
+src/test/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+ANALYSE_*.md
+DESCRIPTION_*.md
+
+# Logs
 *.log
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Autres
+node_modules/
+*.swp
+*.bak

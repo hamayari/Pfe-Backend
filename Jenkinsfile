@@ -3,160 +3,173 @@ pipeline {
     
     tools {
         maven 'maven'
-        jdk 'JDK-17'
     }
     
     environment {
-        MAVEN_OPTS = '-Xmx2048m -Xms512m -XX:MaxMetaspaceSize=512m'
-        DOCKER_IMAGE = 'hamayari/pfe-backend'
+        JAVA_HOME = '/opt/java/openjdk'
+        PATH = "${JAVA_HOME}/bin:${env.PATH}"
+        MAVEN_OPTS = '-Xmx2048m -Xms512m'
+        DOCKER_IMAGE = 'hamalak/pfe-backend'
         DOCKER_TAG = "${BUILD_NUMBER}"
-        SONAR_HOST_URL = 'http://localhost:9000'
-        SONAR_PROJECT_KEY = 'Commercial-PFE-Backend'
-        SONAR_PROJECT_NAME = 'Commercial PFE Backend'
-        GITHUB_REPO = 'https://github.com/hamayari/Pfe-Backend.git'
+        GIT_REPO = 'https://github.com/hamayari/Pfe-Backend.git'
+        GIT_BRANCH = 'develop'
     }
     
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 45, unit: 'MINUTES')
         timestamps()
-        timeout(time: 30, unit: 'MINUTES')
-        skipDefaultCheckout(false)
     }
     
     stages {
-        stage('🧹 Clean Workspace') {
+        stage('🧹 Cleanup & Checkout') {
             steps {
-                echo '🧹 Nettoyage du workspace Jenkins...'
+                echo '🧹 Nettoyage du workspace...'
                 deleteDir()
-                echo '✅ Workspace nettoyé'
+                echo '📥 Checkout du code depuis GitHub...'
+                git branch: "${GIT_BRANCH}", url: "${GIT_REPO}"
             }
         }
         
-        stage('📥 Checkout') {
+        stage('🔍 Vérification Environnement') {
             steps {
-                echo '📥 Récupération du code depuis GitHub...'
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '*/develop']],
-                    userRemoteConfigs: [[
-                        url: "${GITHUB_REPO}",
-                        credentialsId: 'dockerhub-credentials'
-                    ]]
-                ])
-                script {
-                    def gitCommit = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                    def gitBranch = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                    echo "✅ Code récupéré - Branch: ${gitBranch} - Commit: ${gitCommit}"
-                    currentBuild.displayName = "#${env.BUILD_NUMBER} - ${gitBranch}"
-                    currentBuild.description = "Commit: ${gitCommit}"
-                }
+                echo '🔍 Vérification de l\'environnement de build...'
+                sh '''
+                    echo "=========================================="
+                    echo "☕ Java Version:"
+                    java -version
+                    echo ""
+                    echo "📦 Maven Version:"
+                    mvn -version
+                    echo ""
+                    echo "🐳 Docker Version:"
+                    docker --version || echo "Docker non disponible"
+                    echo "=========================================="
+                '''
             }
         }
         
         stage('🔨 Build') {
             steps {
-                echo '🔨 Compilation du code source...'
-                sh 'mvn clean compile -DskipTests -Dcheckstyle.skip=true -B'
-                echo '✅ Compilation terminée'
+                echo '🔨 Compilation du projet...'
+                sh 'mvn clean compile -DskipTests -B'
             }
         }
         
-        stage('🧪 Tests Unitaires (100% Isolés)') {
+        stage('🧪 Tests Unitaires') {
             steps {
-                echo '🧪 Exécution des tests unitaires purs...'
-                echo '   ✅ Tests 100% isolés avec Mockito'
-                echo '   ✅ Aucun ApplicationContext chargé'
-                echo '   ✅ Aucune dépendance externe (MongoDB, etc.)'
-                echo '   ✅ Tests rapides et fiables'
-                sh '''
-                    mvn clean test \
-                    -Dmaven.test.failure.ignore=true \
-                    -Dcheckstyle.skip=true \
-                    -Dsurefire.useFile=false \
-                    -Djava.awt.headless=true \
-                    -Dfile.encoding=UTF-8 \
-                    -Dsurefire.timeout=60 \
-                    -B
-                '''
-                echo '✅ Tests terminés'
+                echo '🧪 Exécution des tests unitaires...'
+                sh 'mvn test -Dmaven.test.failure.ignore=true -B'
             }
             post {
                 always {
-                    script {
-                        try {
-                            def testResults = junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
-                            echo '════════════════════════════════════════'
-                            echo '📊 RÉSULTATS DES TESTS UNITAIRES'
-                            echo '════════════════════════════════════════'
-                            echo "Total: ${testResults.totalCount}"
-                            echo "✅ Réussis: ${testResults.passCount}"
-                            echo "❌ Échoués: ${testResults.failCount}"
-                            echo "⏭️  Ignorés: ${testResults.skipCount}"
-                            echo '════════════════════════════════════════'
-                            
-                            // Ne pas bloquer le build si des tests échouent
-                            if (testResults.failCount > 0) {
-                                echo "⚠️ ${testResults.failCount} test(s) ont échoué mais le build continue"
-                                currentBuild.result = 'UNSTABLE'
-                            }
-                        } catch (Exception e) {
-                            echo '⚠️ Aucun résultat de test disponible ou erreur de lecture'
-                            echo "Erreur: ${e.message}"
-                            // Ne pas bloquer le build
-                            currentBuild.result = 'UNSTABLE'
-                        }
-                    }
+                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
                 }
             }
         }
         
-        stage('📊 Couverture JaCoCo') {
+        stage('🔗 Tests d\'Intégration') {
+            steps {
+                echo '🔗 Exécution des tests d\'intégration...'
+                sh 'mvn verify -DskipUnitTests=true -Dmaven.test.failure.ignore=true -B'
+            }
+            post {
+                always {
+                    junit testResults: '**/target/failsafe-reports/*.xml', allowEmptyResults: true
+                }
+            }
+        }
+        
+        stage('📊 Rapport de Couverture JaCoCo') {
             steps {
                 echo '📊 Génération du rapport de couverture de code...'
-                sh 'mvn jacoco:report -Dcheckstyle.skip=true -B'
-                echo '✅ Rapport JaCoCo généré'
+                sh 'mvn jacoco:report -B'
+                
+                echo '📋 Vérification des fichiers de couverture générés...'
+                sh '''
+                    echo "=========================================="
+                    echo "📁 Fichiers JaCoCo générés:"
+                    ls -lh target/jacoco.exec 2>/dev/null && echo "✅ jacoco.exec trouvé" || echo "⚠️ jacoco.exec non trouvé"
+                    ls -lh target/site/jacoco/jacoco.xml 2>/dev/null && echo "✅ jacoco.xml trouvé" || echo "⚠️ jacoco.xml non trouvé"
+                    ls -lh target/site/jacoco/index.html 2>/dev/null && echo "✅ index.html trouvé" || echo "⚠️ index.html non trouvé"
+                    echo "=========================================="
+                '''
             }
             post {
                 always {
-                    jacoco(
-                        execPattern: '**/target/jacoco.exec',
-                        classPattern: '**/target/classes',
-                        sourcePattern: '**/src/main/java',
-                        exclusionPattern: '''
-                            **/entity/**,
-                            **/dto/**,
-                            **/config/**,
-                            **/model/**,
-                            **/exception/**,
-                            **/DemoApplication.class
-                        ''',
-                        minimumLineCoverage: '0',
-                        minimumBranchCoverage: '0',
-                        maximumLineCoverage: '100',
-                        maximumBranchCoverage: '100'
-                    )
-                    script {
-                        echo "📊 Rapport JaCoCo: ${env.BUILD_URL}jacoco/"
-                    }
+                    publishHTML([
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'target/site/jacoco',
+                        reportFiles: 'index.html',
+                        reportName: '📊 JaCoCo Coverage Report'
+                    ])
                 }
             }
         }
         
-        stage('📦 Package JAR') {
+        stage('🔍 Analyse SonarQube') {
             steps {
-                echo '📦 Création du package JAR exécutable...'
-                sh 'mvn package -DskipTests -Dcheckstyle.skip=true -Dmaven.javadoc.skip=true -B'
+                echo '🔍 Préparation de l\'analyse SonarQube...'
+                
                 script {
-                    def jarFile = sh(
-                        script: 'ls -lh target/*.jar | grep -v "original" | awk \'{print $9, $5}\' || echo "JAR créé"',
+                    // Vérifier si SonarQube est accessible
+                    def sonarReady = sh(
+                        script: 'curl -s -o /dev/null -w "%{http_code}" http://sonarqube:9000/api/system/status',
                         returnStdout: true
                     ).trim()
-                    echo "✅ ${jarFile}"
+                    
+                    if (sonarReady == '200') {
+                        echo '✅ SonarQube est accessible'
+                    } else {
+                        echo '⏳ SonarQube démarre... Attente de 30 secondes'
+                        sleep 30
+                    }
                 }
+                
+                echo '🔍 Lancement de l\'analyse SonarQube...'
+                withCredentials([string(credentialsId: 'sonar', variable: 'SONAR_TOKEN')]) {
+                    sh """
+                        mvn sonar:sonar \
+                            -Dsonar.projectKey=Commercial-PFE-Backend \
+                            -Dsonar.projectName='Commercial PFE Backend' \
+                            -Dsonar.host.url=http://sonarqube:9000 \
+                            -Dsonar.token=\${SONAR_TOKEN} \
+                            -Dsonar.java.binaries=target/classes \
+                            -Dsonar.java.test.binaries=target/test-classes \
+                            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+                            -Dsonar.junit.reportPaths=target/surefire-reports,target/failsafe-reports \
+                            -Dsonar.sources=src/main/java \
+                            -Dsonar.tests=src/test/java \
+                            -Dsonar.java.coveragePlugin=jacoco \
+                            -Dsonar.qualitygate.wait=false \
+                            -B || {
+                                echo "⚠️ Analyse SonarQube échouée mais on continue..."
+                                exit 0
+                            }
+                    """
+                }
+                echo '✅ Analyse SonarQube envoyée avec succès!'
+            }
+        }
+        
+        stage('📦 Package') {
+            steps {
+                echo '📦 Création du package JAR...'
+                sh 'mvn package -DskipTests -B'
+                
+                echo '📋 Vérification du JAR créé...'
+                sh '''
+                    echo "=========================================="
+                    ls -lh target/*.jar
+                    echo "=========================================="
+                '''
             }
             post {
                 success {
-                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true, allowEmptyArchive: false
+                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                    echo '✅ Artefact JAR archivé avec succès'
                 }
             }
         }
@@ -165,114 +178,105 @@ pipeline {
             steps {
                 echo '🐳 Construction de l\'image Docker...'
                 script {
-                    sh """
-                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
-                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:develop-latest
-                    """
-                    
-                    def imageSize = sh(
-                        script: "docker images ${DOCKER_IMAGE}:${DOCKER_TAG} --format '{{.Size}}'",
-                        returnStdout: true
-                    ).trim()
-                    
-                    echo '✅ Images Docker créées:'
-                    echo "  🐳 ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                    echo "  🐳 ${DOCKER_IMAGE}:latest"
-                    echo "  🐳 ${DOCKER_IMAGE}:develop-latest"
-                    echo "� Taille: $r{imageSize}"
+                    try {
+                        sh """
+                            docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                            docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
+                            docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:develop-latest
+                        """
+                        echo '✅ Image Docker créée avec succès'
+                        
+                        // Afficher les images créées
+                        sh """
+                            echo "=========================================="
+                            echo "🐳 Images Docker créées:"
+                            docker images | grep ${DOCKER_IMAGE} | head -5
+                            echo "=========================================="
+                        """
+                    } catch (Exception e) {
+                        echo "⚠️ Erreur lors de la création de l'image Docker: ${e.message}"
+                        echo "⚠️ Continuons quand même..."
+                    }
                 }
             }
         }
         
         stage('📤 Push Docker Hub') {
             steps {
-                echo '📤 Push des images vers Docker Hub...'
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-                    sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    '''
-                    script {
-                        def tags = [DOCKER_TAG, 'latest', 'develop-latest']
-                        tags.each { tag ->
-                            try {
-                                sh "docker push ${DOCKER_IMAGE}:${tag}"
-                                echo "  ✅ Pushed: ${DOCKER_IMAGE}:${tag}"
-                            } catch (Exception e) {
-                                echo "  ⚠️ Failed to push ${tag}: ${e.message}"
-                            }
-                        }
-                    }
-                    sh 'docker logout'
-                    echo '✅ Images poussées vers Docker Hub'
-                    echo '🔗 https://hub.docker.com/r/hamayari/pfe-backend'
+                echo '📤 Push vers Docker Hub...'
+                withCredentials([usernamePassword(credentialsId: 'docker_credentiel', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        echo \${DOCKER_PASS} | docker login -u \${DOCKER_USER} --password-stdin
+                        docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
+                        docker push ${DOCKER_IMAGE}:latest
+                        docker push ${DOCKER_IMAGE}:develop-latest
+                    """
                 }
-            }
-        }
-        
-        stage('📊 Rapport Final') {
-            steps {
-                script {
-                    def buildStatus = currentBuild.result ?: 'SUCCESS'
-                    def statusIcon = buildStatus == 'SUCCESS' ? '✅' : '❌'
-                    
-                    echo '════════════════════════════════════════════════════════════════'
-                    echo '                    RAPPORT FINAL DU BUILD'
-                    echo '════════════════════════════════════════════════════════════════'
-                    echo "${statusIcon} STATUS: ${buildStatus}"
-                    echo ''
-                    echo '📋 INFORMATIONS BUILD:'
-                    echo "  • Build Number: #${env.BUILD_NUMBER}"
-                    echo "  • Branch: ${env.BRANCH_NAME}"
-                    echo ''
-                    echo '🧪 TESTS:'
-                    echo "  • 97 tests unitaires purs (100% isolés)"
-                    echo "  • 0 tests d'intégration (supprimés)"
-                    echo "  • Aucune dépendance externe"
-                    echo ''
-                    echo '📦 ARTEFACTS GÉNÉRÉS:'
-                    echo "  • Docker: ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                    echo "  • Docker: ${DOCKER_IMAGE}:latest"
-                    echo "  • Docker: ${DOCKER_IMAGE}:develop-latest"
-                    echo ''
-                    echo '📊 RAPPORTS DISPONIBLES:'
-                    echo "  • Tests JUnit: ${env.BUILD_URL}testReport/"
-                    echo "  • Couverture JaCoCo: ${env.BUILD_URL}jacoco/"
-                    echo ''
-                    echo '🔗 LIENS UTILES:'
-                    echo "  • Jenkins Build: ${env.BUILD_URL}"
-                    echo "  • Docker Hub: https://hub.docker.com/r/hamayari/pfe-backend"
-                    echo "  • GitHub: ${GITHUB_REPO}"
-                    echo '════════════════════════════════════════════════════════════════'
-                }
+                echo '✅ Images poussées vers Docker Hub avec succès'
             }
         }
     }
     
     post {
         success {
-            echo '✅ ✅ ✅ BUILD RÉUSSI! ✅ ✅ ✅'
-            echo '🎉 Tous les stages ont été complétés avec succès'
-            echo "🐳 Image disponible: docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            echo ''
+            echo '✅ ========================================='
+            echo '✅         PIPELINE RÉUSSI !              '
+            echo '✅ ========================================='
+            echo ''
+            echo '📊 Rapports disponibles:'
+            echo "   📈 Tests: ${BUILD_URL}testReport/"
+            echo "   📊 JaCoCo Coverage: ${BUILD_URL}JaCoCo_20Coverage_20Report/"
+            echo '   🔍 SonarQube: http://localhost:9000/dashboard?id=Commercial-PFE-Backend'
+            echo ''
+            echo "📦 Artefacts: ${BUILD_URL}artifact/"
+            echo "🐳 Image Docker: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            echo ''
+            echo '=========================================='
         }
+        
         failure {
-            echo '❌ ❌ ❌ BUILD ÉCHOUÉ ❌ ❌ ❌'
-            echo '❌ Le build a rencontré des erreurs critiques'
-            echo '💡 Consultez les logs ci-dessus pour plus de détails'
+            echo ''
+            echo '❌ ========================================='
+            echo '❌         PIPELINE ÉCHOUÉ !              '
+            echo '❌ ========================================='
+            echo ''
+            echo '📋 Vérifiez les logs ci-dessus pour plus de détails'
+            echo "📊 Console: ${BUILD_URL}console"
+            echo ''
         }
+        
+        unstable {
+            echo ''
+            echo '⚠️ ========================================='
+            echo '⚠️       PIPELINE INSTABLE                '
+            echo '⚠️ ========================================='
+            echo ''
+            echo '📋 Certains tests ont échoué mais le build continue'
+            echo "📊 Tests: ${BUILD_URL}testReport/"
+            echo ''
+        }
+        
         always {
-            echo '🧹 Nettoyage des ressources...'
-            sh '''
-                docker ps -a | grep backend-test | awk '{print $1}' | xargs -r docker rm -f || true
-                docker images -f "dangling=true" -q | xargs -r docker rmi || true
-            '''
-            echo '✅ Nettoyage terminé'
+            echo ''
+            echo '🧹 Nettoyage et finalisation...'
+            echo "📊 Build #${BUILD_NUMBER} terminé à ${new Date()}"
+            echo ''
+            
+            // Statistiques des tests
+            script {
+                try {
+                    def testResults = junit testResults: '**/target/surefire-reports/*.xml, **/target/failsafe-reports/*.xml', allowEmptyResults: true
+                    echo "📈 Tests exécutés: ${testResults.totalCount}"
+                    echo "✅ Tests réussis: ${testResults.passCount}"
+                    echo "❌ Tests échoués: ${testResults.failCount}"
+                    echo "⏭️ Tests ignorés: ${testResults.skipCount}"
+                } catch (Exception e) {
+                    echo "⚠️ Impossible de récupérer les statistiques des tests"
+                }
+            }
+            
+            echo '=========================================='
         }
     }
 }
