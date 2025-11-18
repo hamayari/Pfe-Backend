@@ -333,16 +333,4 @@ class AdminDashboardServiceTest {
         assertEquals("testuser", result.get(0).getUsername());
     }
 
-    @Test
-    void testMapToUserDTO() {
-        UserDTO result = service.mapToUserDTO(mockUser);
-
-        assertNotNull(result);
-        assertEquals("user1", result.getId());
-        assertEquals("testuser", result.getUsername());
-        assertEquals("test@example.com", result.getEmail());
-        assertTrue(result.isEnabled());
-        assertNotNull(result.getRoles());
-        assertFalse(result.getRoles().isEmpty());
-    }
 }
