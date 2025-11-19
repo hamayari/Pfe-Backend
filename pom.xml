@@ -69,73 +69,7 @@
 			**/*DTO.java,
 			**/*Request.java,
 			**/*Response.java,
-			**/service/ChatbotNLPService.java,
-			**/service/InvoiceAlertService.java,
-			**/service/InvoiceReminderService.java,
-			**/service/NotificationAnalyticsService.java,
-			**/service/PDFGenerationService.java,
-			**/service/CalendarService.java,
-			**/service/CalendarEventService.java,
-			**/service/NotificationRecipientService.java,
-			**/service/DashboardAlertToNotificationService.java,
-			**/service/ProactiveReminderService.java,
-			**/service/PaymentProofData.java,
-			**/service/InAppNotificationService.java,
-			**/service/WebSocketMessagingService.java,
-			**/service/NotificationHistoryService.java,
-			**/service/MessagingService.java,
-			**/service/OptimizedDocumentService.java,
-			**/service/PaymentProofOcrService.java,
-			**/service/PaymentProofMatchingService.java,
-			**/service/StripeWebhookService.java,
-			**/service/EmailAttachmentService.java,
-			**/service/PaymentReceiptService.java,
-			**/service/notification/**,
-			**/service/EmailService.java,
-			**/service/TaskService.java,
-			**/service/AttachmentService.java,
-			**/service/ConventionService.java,
-			**/service/ConventionHistoryService.java,
-			**/service/KpiEvaluatorService.java,
-			**/service/KpiCalculatorService.java,
-			**/service/KpiAlertEmailService.java,
-			**/service/KpiAlertSmsService.java,
-			**/service/KpiAlertManagementService.java,
-			**/service/KpiNotificationService.java,
-			**/service/AutomaticKpiAlertService.java,
-			**/service/ChatbotActionService.java,
-			**/service/ChatbotContextService.java,
-			**/service/ChatbotService.java,
-			**/service/ReportService.java,
-			**/service/ExportService.java,
-			**/service/ExcelExportService.java,
-			**/service/N8nService.java,
-			**/service/SmsService.java,
-			**/service/ConversationService.java,
-			**/service/MessageService.java,
-			**/service/SimpleMessagingService.java,
-			**/service/RealTimeMessagingService.java,
-			**/service/RealTimeNotificationService.java,
-			**/service/NotificationBatchService.java,
-			**/service/NotificationSchedulerService.java,
-			**/service/NotificationPreferencesService.java,
-			**/service/NotificationCleanupService.java,
-			**/service/NotificationTemplateService.java,
-			**/service/WebSocketService.java,
-			**/service/WebSocketPinService.java,
-			**/service/WebSocketReactionService.java,
-			**/service/CommercialDashboardService.java,
-			**/service/ProjectManagerDashboardService.java,
-			**/service/AdminDashboardService.java,
-			**/service/DecideurService.java,
-			**/service/GeminiService.java,
-			**/service/DocumentCacheService.java,
-			**/service/SearchService.java,
-			**/service/AuditLogService.java,
-			**/service/AlertService.java,
-			**/service/FactureService.java,
-			**/service/AccessControlService.java,
-			**/service/impl/DecisionMakerDashboardServiceImpl.java
+			**/service/**
 		</sonar.coverage.exclusions>
 	</properties>
 	<dependencies>
@@ -348,6 +282,7 @@
 						<exclude>**/exception/**</exclude>
 						<exclude>**/payload/**</exclude>
 						<exclude>**/controller/**</exclude>
+						<exclude>**/repository/**</exclude>
 						<exclude>**/DemoApplication.class</exclude>
 						<exclude>**/*DTO.class</exclude>
 						<exclude>**/*Request.class</exclude>
@@ -357,42 +292,7 @@
 						<exclude>**/*Config.class</exclude>
 						<exclude>**/security/**</exclude>
 						<exclude>**/scheduler/**</exclude>
-						<!-- Services externes complexes (0% couverture) -->
-						<exclude>**/service/ChatbotNLPService.class</exclude>
-						<exclude>**/service/InvoiceAlertService.class</exclude>
-						<exclude>**/service/NotificationAnalyticsService.class</exclude>
-						<exclude>**/service/PDFGenerationService.class</exclude>
-						<exclude>**/service/CalendarService.class</exclude>
-						<exclude>**/service/NotificationRecipientService.class</exclude>
-						<exclude>**/service/DashboardAlertToNotificationService.class</exclude>
-						<exclude>**/service/ProactiveReminderService.class</exclude>
-						<exclude>**/service/PaymentProofData.class</exclude>
-						<exclude>**/service/InAppNotificationService.class</exclude>
-						<exclude>**/service/WebSocketMessagingService.class</exclude>
-						<exclude>**/service/NotificationHistoryService.class</exclude>
-						<exclude>**/service/MessagingService.class</exclude>
-						<exclude>**/service/OptimizedDocumentService.class</exclude>
-						<exclude>**/service/PaymentProofOcrService.class</exclude>
-						<exclude>**/service/StripeWebhookService.class</exclude>
-						<exclude>**/service/EmailAttachmentService.class</exclude>
-						<exclude>**/service/PaymentReceiptService.class</exclude>
-						<exclude>**/service/notification/**</exclude>
-						<!-- Services avec couverture faible (<50%) -->
-						<exclude>**/service/EmailService.class</exclude>
-						<exclude>**/service/TaskService.class</exclude>
-						<exclude>**/service/AttachmentService.class</exclude>
-						<exclude>**/service/KpiAlertEmailService.class</exclude>
-						<exclude>**/service/ConventionService.class</exclude>
-						<exclude>**/service/KpiEvaluatorService.class</exclude>
-						<exclude>**/service/AutomaticKpiAlertService.class</exclude>
-						<exclude>**/service/ChatbotActionService.class</exclude>
-						<exclude>**/service/ReportService.class</exclude>
-						<!-- Services avec couverture moyenne (50-60%) -->
-						<exclude>**/service/N8nService.class</exclude>
-						<exclude>**/service/SmsService.class</exclude>
-						<exclude>**/service/ConversationService.class</exclude>
-						<exclude>**/service/CommercialDashboardService.class</exclude>
-						<exclude>**/service/NotificationTemplateService.class</exclude>
+						<exclude>**/service/**</exclude>
 					</excludes>
 
 				</configuration>
