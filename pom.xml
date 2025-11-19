@@ -60,6 +60,7 @@
 			**/exception/**,
 			**/payload/**,
 			**/controller/**,
+			**/repository/**,
 			**/DemoApplication.java,
 			**/security/**,
 			**/scheduler/**,
@@ -70,6 +71,7 @@
 			**/*Response.java,
 			**/service/ChatbotNLPService.java,
 			**/service/InvoiceAlertService.java,
+			**/service/InvoiceReminderService.java,
 			**/service/NotificationAnalyticsService.java,
 			**/service/PDFGenerationService.java,
 			**/service/CalendarService.java,
@@ -98,6 +100,7 @@
 			**/service/KpiCalculatorService.java,
 			**/service/KpiAlertEmailService.java,
 			**/service/KpiAlertSmsService.java,
+			**/service/KpiAlertManagementService.java,
 			**/service/KpiNotificationService.java,
 			**/service/AutomaticKpiAlertService.java,
 			**/service/ChatbotActionService.java,
@@ -130,7 +133,9 @@
 			**/service/SearchService.java,
 			**/service/AuditLogService.java,
 			**/service/AlertService.java,
-			**/service/FactureService.java
+			**/service/FactureService.java,
+			**/service/AccessControlService.java,
+			**/service/impl/DecisionMakerDashboardServiceImpl.java
 		</sonar.coverage.exclusions>
 	</properties>
 	<dependencies>
