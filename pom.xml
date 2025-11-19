@@ -69,7 +69,9 @@
 			**/*DTO.java,
 			**/*Request.java,
 			**/*Response.java,
-			**/service/**
+			**/service/**,
+			**/util/CleanDuplicateUsers.java,
+			**/util/PasswordHashGenerator.java
 		</sonar.coverage.exclusions>
 	</properties>
 	<dependencies>
@@ -293,6 +295,8 @@
 						<exclude>**/security/**</exclude>
 						<exclude>**/scheduler/**</exclude>
 						<exclude>**/service/**</exclude>
+						<exclude>**/util/CleanDuplicateUsers.class</exclude>
+						<exclude>**/util/PasswordHashGenerator.class</exclude>
 					</excludes>
 
 				</configuration>
