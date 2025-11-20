@@ -27,8 +27,6 @@ EXPOSE 8085
 # Variables d'environnement par défaut
 ENV SPRING_PROFILES_ACTIVE=prod
 ENV JAVA_OPTS="-Xmx512m -Xms256m"
-ENV SPRING_DATA_MONGODB_URI=""
-ENV SPRING_DATA_MONGODB_DATABASE="demo_db"
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
