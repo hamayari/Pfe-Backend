@@ -27,10 +27,12 @@ EXPOSE 8085
 # Variables d'environnement par défaut
 ENV SPRING_PROFILES_ACTIVE=prod
 ENV JAVA_OPTS="-Xmx512m -Xms256m"
+ENV SPRING_DATA_MONGODB_URI=""
+ENV SPRING_DATA_MONGODB_DATABASE="demo_db"
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8085/actuator/health || exit 1
 
-# Démarrer l'application
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+# Démarrer l'application avec les variables d'environnement explicites
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Dspring.data.mongodb.uri=${SPRING_DATA_MONGODB_URI} -Dspring.data.mongodb.database=${SPRING_DATA_MONGODB_DATABASE} -jar app.jar"]
