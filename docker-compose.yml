@@ -1,21 +1,17 @@
-version: '3.8'
-
 services:
-  # ------------------------
   # MongoDB Database
-  # ------------------------
   mongodb:
     image: mongo:7.0
     container_name: commercial-pfe-mongodb
     restart: unless-stopped
-    # ports exposés en prod non nécessaires, interne au réseau suffisant
-    # - "27017:27017"
+    ports:
+      - "27017:27017"
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_ROOT_PASSWORD: password
       MONGO_INITDB_DATABASE: convention_tracker
     networks:
       - app-network
@@ -25,9 +21,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ------------------------
   # Backend Spring Boot
-  # ------------------------
   backend:
     build:
       context: .
@@ -39,34 +33,29 @@ services:
       - "8080:8080"
     environment:
       # MongoDB Configuration
-      SPRING_DATA_MONGODB_URI: mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/convention_tracker?authSource=admin
+      SPRING_DATA_MONGODB_URI: mongodb://admin:password@mongodb:27017/convention_tracker?authSource=admin
       SPRING_DATA_MONGODB_DATABASE: convention_tracker
+      SPRING_DATA_MONGODB_HOST: mongodb
+      SPRING_DATA_MONGODB_PORT: 27017
       
       # JWT Configuration
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       JWT_EXPIRATION: 86400000
       
       # Email Configuration (Brevo)
       SPRING_MAIL_HOST: smtp-relay.brevo.com
       SPRING_MAIL_PORT: 587
-      SPRING_MAIL_USERNAME: ${BREVO_EMAIL}
-      SPRING_MAIL_PASSWORD: ${BREVO_API_KEY}
+      SPRING_MAIL_USERNAME: ${BREVO_EMAIL:-your-email@example.com}
+      SPRING_MAIL_PASSWORD: ${BREVO_API_KEY:-your-api-key}
       
       # SMS Configuration (Twilio)
-      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
-      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
-      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-your-account-sid}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-your-auth-token}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-+1234567890}
       
       # Application Configuration
       SPRING_PROFILES_ACTIVE: prod
       SERVER_PORT: 8080
-      
-      # Security / Superadmin
-      SPRING_ADMIN_USER: ${SPRING_ADMIN_USER}
-      SPRING_ADMIN_PASSWORD: ${SPRING_ADMIN_PASSWORD}
-      SUPERADMIN_USER: ${SUPERADMIN_USER}
-      SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD}
-      SUPERADMIN_EMAIL: ${SUPERADMIN_EMAIL}
       
       # Logging
       LOGGING_LEVEL_ROOT: INFO
@@ -83,9 +72,7 @@ services:
       retries: 3
       start_period: 40s
 
-  # ------------------------
   # Frontend Angular + Nginx
-  # ------------------------
   frontend:
     build:
       context: ./app-frontend-new
@@ -106,9 +93,6 @@ services:
       timeout: 10s
       retries: 3
 
-# ------------------------
-# Networks & Volumes
-# ------------------------
 networks:
   app-network:
     driver: bridge
