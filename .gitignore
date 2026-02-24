@@ -4,6 +4,11 @@
 
 # JavaScript files
 *.js
+**/*.js
+
+# Shell scripts
+*.sh
+**/*.sh
 
 # Markdown (except README)
 *.md
