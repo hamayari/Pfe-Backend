@@ -418,21 +418,6 @@ Les contributions sont les bienvenues! Veuillez suivre ces étapes:
 
 ---
 
-## 📞 Support
-
-- 📧 Email: support@gestionpro.com
-- 📚 Documentation: [docs.gestionpro.com](https://docs.gestionpro.com)
-- 🐛 Issues: [GitHub Issues](../../issues)
-
----
-
-## 📄 License
-
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
-
----
-
-<div align="center">
 
 ### ⭐ Si ce projet vous aide, n'hésitez pas à lui donner une étoile!
 
