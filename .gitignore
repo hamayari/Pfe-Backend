@@ -2,6 +2,9 @@
 *Test.java
 **/*Test.java
 
+# JavaScript files
+*.js
+
 # Markdown (except README)
 *.md
 !README.md
