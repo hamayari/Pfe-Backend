@@ -43,8 +43,21 @@ pom.xml.releaseBackup
 .DS_Store
 Thumbs.db
 
-# Environment
+# Environment & Configuration
 .env
+*.env
+env.template
+.env.*
+!.env.example
+
+# Docker & Deployment
+docker-compose.test.yml
+docker-compose.staging.yml
+render.yaml
+
+# Proxy & Query files
+proxy.conf.json
+query
 
 # Uploads
 uploads/
