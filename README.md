@@ -1,426 +1,411 @@
 <div align="center">
 
-# 🚀 Backend - Gestion Pro API
+# ⚙️ Enterprise Management Platform - Backend API
 
-### API REST Complète pour la Gestion Commerciale & Facturation
+### RESTful API & WebSocket Server for Business Management System
 
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.0-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://www.oracle.com/java/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-7.0-green.svg)](https://www.mongodb.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.x-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Java](https://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://www.oracle.com/java/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Spring Security](https://img.shields.io/badge/Spring_Security-6DB33F?style=for-the-badge&logo=spring-security&logoColor=white)](https://spring.io/projects/spring-security)
+
+**🔗 [Frontend Repository](https://github.com/hamayari/Pfe-Frontend)** • [API Documentation](#) • [Report Bug](#)
+
+> **Note:** This is the backend API repository. For the Angular frontend, visit the [frontend repository](https://github.com/hamayari/Pfe-Frontend).
 
 </div>
 
 ---
 
-## 📋 Vue d'Ensemble
+## 🎯 Overview
 
-API backend robuste et scalable construite avec Spring Boot pour gérer les opérations commerciales, la facturation intelligente, et les communications en temps réel. Architecture microservices-ready avec plus de 70 endpoints REST.
+**Enterprise-grade RESTful API** built with Spring Boot, providing secure and scalable backend services for business management, invoicing, real-time messaging, and AI-powered analytics.
 
----
+> 🔗 **Frontend Repository:** [Angular Frontend](https://github.com/hamayari/Pfe-Frontend)
 
-## ✨ Fonctionnalités Clés
+### 🌟 Key Features
 
-### 🔐 Authentification & Sécurité
-- 🔑 **JWT Authentication** - Tokens sécurisés avec expiration
-- 🛡️ **Spring Security** - Protection des endpoints par rôle
-- 📱 **2FA (TOTP)** - Authentification à deux facteurs avec QR codes
-- 🔒 **Bcrypt Hashing** - Chiffrement sécurisé des mots de passe
-- 👥 **RBAC** - Contrôle d'accès basé sur les rôles (6 rôles)
-- 📝 **Audit Logging** - Traçabilité complète des actions
-
-### 📊 Gestion des Conventions
-- ✅ **CRUD Complet** - Création, lecture, mise à jour, suppression
-- 🔄 **Cycle de Vie** - Gestion des statuts (DRAFT, ACTIVE, COMPLETED, CANCELLED)
-- 📅 **Échéances** - Suivi automatique des dates limites
-- 🗺️ **Géolocalisation** - Organisation par zones géographiques et gouvernorats
-- 💰 **Termes de Paiement** - Configuration flexible des conditions
-- 📜 **Historique** - Audit trail complet avec versioning
-
-### 💳 Facturation Intelligente
-- 🤖 **Génération Automatique** - Numérotation et création de factures
-- 🔍 **OCR Tesseract** - Extraction automatique des données de paiement
-- ✅ **Validation Automatique** - Matching intelligent des preuves de paiement
-- 💵 **Paiements Partiels** - Support des paiements échelonnés
-- 📧 **Rappels Automatiques** - Notifications programmées pour les retards
-- 📊 **Suivi en Temps Réel** - Dashboard des statuts de paiement
-- 📄 **Export PDF** - Génération de factures professionnelles
-
-### 🔔 Système de Notifications Multi-Canal
-- 📧 **Email (Brevo SMTP)** - Templates personnalisables
-- 📱 **SMS (Twilio)** - Notifications instantanées
-- 🔔 **Push Web** - Notifications navigateur en temps réel
-- 💬 **In-App** - Notifications intégrées à l'application
-- ⚙️ **Préférences Utilisateur** - Configuration par canal et type
-- 📊 **Analytics** - Statistiques d'envoi et de lecture
-- 🕐 **Planification** - Envoi différé et récurrent
-
-### 💬 Messagerie Temps Réel
-- 🔌 **WebSocket + STOMP** - Communication bidirectionnelle
-- 💬 **Chat Type Slack** - Conversations, threads, mentions
-- 📎 **Pièces Jointes** - Upload et partage de fichiers
-- 👍 **Réactions** - Emojis et interactions
-- 📌 **Épinglage** - Messages importants
-- ⌨️ **Typing Indicators** - Indicateurs de frappe
-- 📜 **Historique** - Recherche et archivage
-
-### 📈 KPI & Alertes Intelligentes
-- 📊 **Monitoring Temps Réel** - Suivi des métriques business
-- 🚨 **Alertes Automatiques** - Déclenchement sur seuils
-- 🔄 **Délégation** - Escalade hiérarchique des alertes
-- 📉 **Détection d'Anomalies** - Analyse prédictive
-- 💻 **Monitoring Système** - CPU, RAM, Disque
-- 📧 **Notifications Multi-Canal** - Email + SMS pour alertes critiques
-
-### 🎨 Dashboards Analytiques
-- 👨‍💼 **Admin Dashboard** - Vue système complète, gestion utilisateurs
-- 💼 **Commercial Dashboard** - Métriques ventes, pipeline, revenus
-- 🎯 **Décideur Dashboard** - KPIs stratégiques, heatmaps régionales
-- 📋 **Chef de Projet Dashboard** - Suivi projets, équipes, tâches
-
-### 🤖 Intelligence Artificielle
-- 🧠 **Chatbot NLP** - Intégration Gemini AI
-- 💬 **Compréhension Naturelle** - Traitement du langage
-- 📊 **Génération de Rapports** - Insights automatiques
-- 🔮 **Analyses Prédictives** - Forecasting et tendances
-
-### 📅 Gestion Avancée
-- 📆 **Calendrier** - Événements et rappels
-- ✅ **Tâches** - Gestion de projets intégrée
-- 📄 **Génération de Rapports** - PDF, Excel, CSV
-- 💳 **Intégration Stripe** - Webhooks de paiement
-- 🔍 **Recherche Avancée** - Full-text search MongoDB
+- 🔐 **JWT Authentication** - Secure token-based auth with refresh tokens
+- 📱 **Two-Factor Authentication (2FA)** - TOTP implementation
+- 🔒 **Role-Based Access Control** - Multi-level permission system
+- 💬 **WebSocket Server** - Real-time messaging with STOMP protocol
+- 📊 **RESTful APIs** - 50+ endpoints for complete business operations
+- 🗄️ **PostgreSQL Database** - Optimized schema with JPA/Hibernate
+- 📧 **Email Service** - Automated notifications and alerts
+- 📱 **SMS Integration** - Alert delivery system
+- 🤖 **AI Integration Ready** - Endpoints for chatbot and analytics
+- 📄 **OCR Processing** - Invoice validation and data extraction
+- 📈 **KPI & Monitoring** - System metrics and business analytics
+- 🔔 **Notification System** - Multi-channel notification delivery
 
 ---
 
-## 🛠️ Stack Technique
+## 🛠️ Tech Stack
 
-### Core Framework
+### **Core Framework**
 ```
-☕ Java 17
-🍃 Spring Boot 3.2.0
-🗄️ MongoDB 7.0
-🔧 Maven 3.8+
-```
-
-### Sécurité
-```
-🔐 Spring Security
-🎫 JWT (JJWT 0.11.5)
-🔑 TOTP (2FA)
-📱 Google ZXing (QR Codes)
+☕ Java 17                    🍃 Spring Boot 3.x
+🔒 Spring Security 6.x        🗄️ Spring Data JPA
+🔌 Spring WebSocket           📧 Spring Mail
 ```
 
-### Communication
+### **Database & ORM**
 ```
-🔌 Spring WebSocket
-📡 STOMP Protocol
-📧 Spring Mail + Brevo
-📱 Twilio SDK 8.31.1
+🐘 PostgreSQL 15              🔄 Hibernate ORM
+📊 Flyway/Liquibase          💾 Connection Pooling (HikariCP)
 ```
 
-### Intégrations
+### **Security**
 ```
-💳 Stripe Java 24.6.0
-🔍 Tesseract OCR 5.4.0
-📄 iText PDF 7.2.5
-📊 Apache POI 5.2.3
-🤖 Gemini AI API
+🔐 JWT (jjwt)                🔒 BCrypt Password Encoding
+🛡️ CORS Configuration        🚫 CSRF Protection
+📱 TOTP (2FA)                🔑 OAuth2 Ready
 ```
 
-### DevOps & Qualité
+### **Real-Time & Messaging**
 ```
-🐳 Docker + Docker Compose
-🔄 Jenkins CI/CD
-📊 SonarQube
-✅ JUnit + Mockito
-📈 JaCoCo (Code Coverage)
-📚 Swagger/OpenAPI 3.0
+🔌 WebSocket (STOMP)         📡 SockJS Fallback
+💬 Message Broker            🔄 Real-time Updates
+```
+
+### **Integrations**
+```
+📧 JavaMail API              📱 SMS Gateway
+🤖 AI APIs (Gemini)          📄 OCR Services
+📊 Reporting Libraries       📁 File Storage
 ```
 
 ---
 
-## 📁 Architecture
+## 📁 Project Architecture
 
 ```
-src/main/java/com/example/demo/
-├── 📂 config/              # 20+ configurations (Security, WebSocket, Mail, etc.)
-├── 📂 controller/          # 70+ REST endpoints
-├── 📂 service/             # 95+ services métier
-├── 📂 model/               # 44 entités MongoDB
-├── 📂 repository/          # 30+ repositories Spring Data
-├── 📂 security/            # JWT, 2FA, WebSocket auth
-├── 📂 scheduler/           # Tâches planifiées (Cron)
-├── 📂 notification/        # Système multi-canal
-├── 📂 dto/                 # Data Transfer Objects
-├── 📂 exception/           # Gestion centralisée des erreurs
-└── 📂 util/                # Utilitaires et helpers
+src/main/java/
+├── 📂 config/                      # Configuration Classes
+│   ├── SecurityConfig.java         # Spring Security setup
+│   ├── WebSocketConfig.java        # WebSocket configuration
+│   ├── CorsConfig.java             # CORS settings
+│   └── JwtConfig.java              # JWT configuration
+│
+├── 📂 controller/                  # REST Controllers (50+ endpoints)
+│   ├── AuthController.java         # Authentication endpoints
+│   ├── UserController.java         # User management
+│   ├── ConventionController.java   # Contract management
+│   ├── InvoiceController.java      # Invoice operations
+│   ├── MessageController.java      # Messaging endpoints
+│   ├── NotificationController.java # Notification management
+│   └── KpiController.java          # KPI & analytics
+│
+├── 📂 service/                     # Business Logic Layer
+│   ├── AuthService.java            # Authentication logic
+│   ├── UserService.java            # User operations
+│   ├── ConventionService.java      # Contract business logic
+│   ├── InvoiceService.java         # Invoice processing
+│   ├── MessagingService.java       # Real-time messaging
+│   ├── NotificationService.java    # Notification delivery
+│   ├── EmailService.java           # Email sending
+│   └── OcrService.java             # OCR processing
+│
+├── 📂 repository/                  # Data Access Layer
+│   ├── UserRepository.java         # User data access
+│   ├── ConventionRepository.java   # Contract data access
+│   ├── InvoiceRepository.java      # Invoice data access
+│   └── MessageRepository.java      # Message data access
+│
+├── 📂 model/                       # Entity Classes
+│   ├── User.java                   # User entity
+│   ├── Convention.java             # Contract entity
+│   ├── Invoice.java                # Invoice entity
+│   ├── Message.java                # Message entity
+│   └── Notification.java           # Notification entity
+│
+├── 📂 dto/                         # Data Transfer Objects
+│   ├── request/                    # Request DTOs
+│   └── response/                   # Response DTOs
+│
+├── 📂 security/                    # Security Components
+│   ├── JwtTokenProvider.java       # JWT generation/validation
+│   ├── JwtAuthFilter.java          # JWT authentication filter
+│   ├── UserDetailsServiceImpl.java # User details service
+│   └── TwoFactorAuthService.java   # 2FA implementation
+│
+├── 📂 exception/                   # Exception Handling
+│   ├── GlobalExceptionHandler.java # Global error handler
+│   └── CustomExceptions.java       # Custom exceptions
+│
+└── 📂 util/                        # Utility Classes
+    ├── DateUtil.java               # Date utilities
+    ├── ValidationUtil.java         # Validation helpers
+    └── FileUtil.java               # File operations
 ```
 
 ---
 
-## 🚀 Démarrage Rapide
+## 🚀 Getting Started
 
-### Prérequis
-- Java 17+
-- Maven 3.8+
-- MongoDB 7.0+
-- Docker (optionnel)
+### Prerequisites
+
+- **Java 17+** (JDK)
+- **Maven 3.8+**
+- **PostgreSQL 15+**
+- **Git**
 
 ### Installation
 
 ```bash
-# Cloner le repository
-git clone https://github.com/hamayari/Pfe-Backend.git
-cd Pfe-Backend
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/YOUR_BACKEND_REPO.git
+cd YOUR_BACKEND_REPO
 
-# Installer les dépendances
+# Configure database
+# Edit src/main/resources/application.properties
+
+# Install dependencies
 mvn clean install
 
-# Lancer l'application
+# Run the application
 mvn spring-boot:run
 ```
 
-L'API sera accessible sur `http://localhost:8080`
-
-### Docker
-
-```bash
-# Build l'image
-docker build -t gestion-pro-backend .
-
-# Lancer avec Docker Compose
-docker-compose up -d
-```
+The API will be available at `http://localhost:8080`
 
 ---
 
 ## ⚙️ Configuration
 
-### application.properties
+### Database Setup
 
 ```properties
-# MongoDB
-spring.data.mongodb.uri=mongodb://localhost:27017/gestion_pro
+# src/main/resources/application.properties
 
-# JWT
-jwt.secret=YOUR_SECRET_KEY_HERE
+# Database Configuration
+spring.datasource.url=jdbc:postgresql://localhost:5432/your_database
+spring.datasource.username=your_username
+spring.datasource.password=your_password
+
+# JPA/Hibernate
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+
+# JWT Configuration
+jwt.secret=your-secret-key
 jwt.expiration=86400000
+jwt.refresh-expiration=604800000
 
-# Email (Brevo)
-spring.mail.host=smtp-relay.brevo.com
+# Email Configuration
+spring.mail.host=smtp.gmail.com
 spring.mail.port=587
-spring.mail.username=YOUR_EMAIL
-spring.mail.password=YOUR_BREVO_API_KEY
-
-# SMS (Twilio)
-twilio.account.sid=YOUR_ACCOUNT_SID
-twilio.auth.token=YOUR_AUTH_TOKEN
-twilio.phone.number=YOUR_TWILIO_NUMBER
-
-# Stripe
-stripe.api.key=YOUR_STRIPE_SECRET_KEY
-stripe.webhook.secret=YOUR_WEBHOOK_SECRET
+spring.mail.username=your-email@gmail.com
+spring.mail.password=your-app-password
 ```
 
 ---
 
-## 📚 Documentation API
+## 📡 API Endpoints Overview
 
-### Swagger UI
-Une fois l'application lancée, accédez à la documentation interactive:
-
+### Authentication
 ```
-http://localhost:8080/swagger-ui.html
-```
-
-### Endpoints Principaux
-
-#### 🔐 Authentification
-```
-POST   /api/auth/signup          # Inscription
-POST   /api/auth/login           # Connexion
-POST   /api/auth/2fa/enable      # Activer 2FA
-POST   /api/auth/2fa/verify      # Vérifier code 2FA
-POST   /api/auth/refresh         # Rafraîchir token
+POST   /api/auth/register          # User registration
+POST   /api/auth/login             # User login
+POST   /api/auth/refresh           # Refresh token
+POST   /api/auth/logout            # User logout
+POST   /api/auth/2fa/enable        # Enable 2FA
+POST   /api/auth/2fa/verify        # Verify 2FA code
+POST   /api/auth/forgot-password   # Password reset request
+POST   /api/auth/reset-password    # Reset password
 ```
 
-#### 📊 Conventions
+### Users
 ```
-GET    /api/conventions          # Liste des conventions
-POST   /api/conventions          # Créer une convention
-GET    /api/conventions/{id}     # Détails d'une convention
-PUT    /api/conventions/{id}     # Modifier une convention
-DELETE /api/conventions/{id}     # Supprimer une convention
-GET    /api/conventions/{id}/history  # Historique
-```
-
-#### 💳 Factures
-```
-GET    /api/invoices             # Liste des factures
-POST   /api/invoices             # Créer une facture
-PUT    /api/invoices/{id}/pay    # Enregistrer un paiement
-POST   /api/invoices/{id}/proof  # Upload preuve de paiement
-GET    /api/invoices/overdue     # Factures en retard
+GET    /api/users                  # Get all users
+GET    /api/users/{id}             # Get user by ID
+PUT    /api/users/{id}             # Update user
+DELETE /api/users/{id}             # Delete user
+GET    /api/users/profile          # Get current user profile
 ```
 
-#### 🔔 Notifications
+### Contracts (Conventions)
 ```
-GET    /api/notifications        # Liste des notifications
-POST   /api/notifications/send   # Envoyer une notification
-PUT    /api/notifications/{id}/read  # Marquer comme lu
-GET    /api/notifications/preferences  # Préférences utilisateur
+GET    /api/conventions            # Get all contracts
+POST   /api/conventions            # Create contract
+GET    /api/conventions/{id}       # Get contract by ID
+PUT    /api/conventions/{id}       # Update contract
+DELETE /api/conventions/{id}       # Delete contract
 ```
 
-#### 💬 Messagerie
+### Invoices
 ```
-WS     /ws/chat                  # WebSocket endpoint
-GET    /api/messages             # Historique des messages
-POST   /api/messages             # Envoyer un message
-POST   /api/messages/{id}/react  # Ajouter une réaction
+GET    /api/invoices               # Get all invoices
+POST   /api/invoices               # Create invoice
+GET    /api/invoices/{id}          # Get invoice by ID
+PUT    /api/invoices/{id}          # Update invoice
+POST   /api/invoices/{id}/payment  # Record payment
+GET    /api/invoices/{id}/pdf      # Generate PDF
+```
+
+### Notifications
+```
+GET    /api/notifications          # Get user notifications
+POST   /api/notifications/mark-read # Mark as read
+DELETE /api/notifications/{id}     # Delete notification
+GET    /api/notifications/preferences # Get preferences
+PUT    /api/notifications/preferences # Update preferences
+```
+
+### WebSocket
+```
+CONNECT /ws                        # WebSocket connection
+SUBSCRIBE /topic/messages          # Subscribe to messages
+SEND    /app/chat.send             # Send message
 ```
 
 ---
 
-## 👥 Rôles & Permissions
+## 🔒 Security Features
 
-| Rôle | Description | Permissions |
-|------|-------------|-------------|
-| 🔴 **SUPER_ADMIN** | Administrateur système | Accès complet |
-| 🟠 **ADMIN** | Administrateur | Gestion utilisateurs, monitoring |
-| 🟢 **COMMERCIAL** | Commercial | Conventions, factures, clients |
-| 🔵 **DECISION_MAKER** | Décideur | Vue stratégique, KPIs, analytics |
-| 🟣 **PROJECT_MANAGER** | Chef de projet | Projets, tâches, équipes |
-| ⚪ **USER** | Utilisateur | Accès basique lecture seule |
+- ✅ JWT token-based authentication
+- ✅ Refresh token mechanism
+- ✅ Two-Factor Authentication (TOTP)
+- ✅ Role-based access control (RBAC)
+- ✅ Password encryption (BCrypt)
+- ✅ CORS configuration
+- ✅ CSRF protection
+- ✅ SQL injection prevention
+- ✅ XSS protection
+- ✅ Rate limiting
+- ✅ Audit logging
 
 ---
 
-## 🧪 Tests
+## 🐳 Docker Deployment
 
-### Lancer les tests
 ```bash
-# Tests unitaires
+# Build Docker image
+docker build -t enterprise-backend .
+
+# Run with Docker Compose
+docker-compose up -d
+```
+
+### docker-compose.yml
+```yaml
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: enterprise_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+  
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/enterprise_db
+```
+
+---
+
+## 📊 Database Schema
+
+### Core Tables
+- `users` - User accounts and authentication
+- `roles` - User roles and permissions
+- `conventions` - Business contracts
+- `invoices` - Invoice records
+- `payments` - Payment transactions
+- `messages` - Chat messages
+- `notifications` - User notifications
+- `audit_logs` - System audit trail
+- `kpi_alerts` - KPI monitoring alerts
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run unit tests
 mvn test
 
-# Tests d'intégration
+# Run integration tests
 mvn verify
 
-# Rapport de couverture
+# Generate coverage report
 mvn jacoco:report
 ```
 
-### Couverture de Code
-- Tests unitaires: 95+ services testés
-- Tests d'intégration: Embedded MongoDB
-- JaCoCo: Rapport HTML dans `target/site/jacoco/`
+---
+
+## 📚 API Documentation
+
+API documentation is available via **Swagger/OpenAPI**:
+
+- **Swagger UI:** `http://localhost:8080/swagger-ui.html`
+- **OpenAPI JSON:** `http://localhost:8080/v3/api-docs`
 
 ---
 
-## 📊 Monitoring & Santé
+## 🤝 Contributing
 
-### Actuator Endpoints
-```
-GET /actuator/health          # État de santé
-GET /actuator/metrics         # Métriques système
-GET /actuator/info            # Informations application
-```
+Contributions are welcome! Please follow these steps:
 
-### Prometheus & Grafana
-```bash
-# Lancer le monitoring
-docker-compose -f docker-compose.monitoring.yml up -d
-```
-
-- Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3000`
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ---
 
-## 🔒 Sécurité
+## 📝 License
 
-### Bonnes Pratiques Implémentées
-- ✅ JWT avec expiration et refresh tokens
-- ✅ Authentification 2FA (TOTP)
-- ✅ Hachage bcrypt des mots de passe
-- ✅ Protection CSRF
-- ✅ CORS configuré
-- ✅ Validation des entrées (JSoup, Apache Commons Text)
-- ✅ Rate limiting sur les endpoints sensibles
-- ✅ Audit logging complet
-- ✅ Chiffrement des données sensibles
+This project is licensed under the **MIT License**.
 
 ---
 
-## 📈 Performance
+## 📧 Contact
 
-### Optimisations
-- 🚀 Indexation MongoDB optimisée
-- 💾 Cache Redis pour les données fréquentes
-- 📊 Pagination sur tous les endpoints de liste
-- 🔄 Lazy loading des relations
-- ⚡ Requêtes asynchrones pour les notifications
-- 📦 Compression GZIP des réponses
+**Project Links:**
+- ⚙️ Backend Repository: [This Repo](https://github.com/YOUR_USERNAME/YOUR_BACKEND_REPO)
+- 🎨 Frontend Repository: [Frontend Repo](https://github.com/hamayari/Pfe-Frontend)
 
 ---
 
-## 🐳 Déploiement
+<div align="center">
 
-### Docker Production
-```bash
-# Build pour production
-mvn clean package -Pprod
+## 🌟 Backend Highlights for Recruiters
 
-# Lancer avec Docker
-docker-compose -f docker-compose.prod.yml up -d
+### **Technical Skills Demonstrated**
+
+```
+Java 17 • Spring Boot 3.x • Spring Security • Spring Data JPA
+PostgreSQL • Hibernate • JWT Authentication • WebSocket (STOMP)
+RESTful API Design • Microservices Architecture • Docker
+Maven • JUnit • Mockito • Swagger/OpenAPI
+Email Integration • SMS Integration • OCR Processing
+2FA (TOTP) • RBAC • Audit Logging • Performance Optimization
 ```
 
-### Variables d'Environnement
-```bash
-SPRING_PROFILES_ACTIVE=prod
-MONGODB_URI=mongodb://mongo:27017/gestion_pro
-JWT_SECRET=your_production_secret
-BREVO_API_KEY=your_brevo_key
-TWILIO_ACCOUNT_SID=your_twilio_sid
-TWILIO_AUTH_TOKEN=your_twilio_token
-STRIPE_API_KEY=your_stripe_key
-```
+### **Architecture & Design Patterns**
+
+- 🏗️ **Layered Architecture** (Controller → Service → Repository)
+- 🔄 **Dependency Injection** (Spring IoC)
+- 🎯 **DTO Pattern** for data transfer
+- 🛡️ **Security Best Practices** (JWT, BCrypt, CORS)
+- 📊 **Database Optimization** (Indexing, Query optimization)
+- 🔌 **Real-Time Communication** (WebSocket)
+- 📧 **Event-Driven** notification system
 
 ---
 
-## 📝 Logs
+### ⭐ If this project helps you, please give it a star!
 
-### Configuration Logback
-```xml
-<!-- Logs dans target/logs/ -->
-- application.log      # Logs généraux
-- error.log           # Erreurs uniquement
-- audit.log           # Audit trail
-```
-
-### Niveaux de Log
-```properties
-logging.level.root=INFO
-logging.level.com.example.demo=DEBUG
-logging.level.org.springframework.security=DEBUG
-```
-
----
-
-## 🤝 Contribution
-
-Les contributions sont les bienvenues! Veuillez suivre ces étapes:
-
-1. Fork le projet
-2. Créez votre branche (`git checkout -b feature/AmazingFeature`)
-3. Committez vos changements (`git commit -m 'Add AmazingFeature'`)
-4. Push vers la branche (`git push origin feature/AmazingFeature`)
-5. Ouvrez une Pull Request
-
----
-
-
-### ⭐ Si ce projet vous aide, n'hésitez pas à lui donner une étoile!
-
-**Développé avec ❤️ par l'équipe Gestion Pro**
+**Built with ❤️ for modern enterprise management**
 
 </div>
